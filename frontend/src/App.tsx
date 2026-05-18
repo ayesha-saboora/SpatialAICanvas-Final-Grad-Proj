@@ -35,14 +35,165 @@ function displayExplanationText(text: string): string {
     const o = JSON.parse(t) as { explanation?: unknown }
     if (typeof o.explanation === 'string' && o.explanation.trim()) return o.explanation.trim()
   } catch {
-    /* ignore */
+    /* try partial JSON below */
+  }
+  const m = t.match(/"explanation"\s*:\s*"((?:[^"\\]|\\.)*)"/s)
+  if (m?.[1]) {
+    try {
+      return JSON.parse(`"${m[1]}"`).trim()
+    } catch {
+      return m[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').trim()
+    }
   }
   return text
 }
 
+function tryParseExplainPayload(text: string): { explanation: string; diagram: DiagramData | null } | null {
+  const t = text.trim()
+  if (!t.startsWith('{')) return null
+  try {
+    const o = JSON.parse(t) as { explanation?: unknown; diagram?: DiagramData }
+    const explanation =
+      typeof o.explanation === 'string' && o.explanation.trim()
+        ? o.explanation.trim()
+        : displayExplanationText(t)
+    const diagram =
+      o.diagram && Array.isArray(o.diagram.nodes) && o.diagram.nodes.length > 0 ? o.diagram : null
+    return { explanation, diagram }
+  } catch {
+    return null
+  }
+}
+
+function normalizeExplainResponse(data: ExplainResponse): ExplainResponse {
+  let explanation = displayExplanationText(data.explanation)
+  let diagram = data.diagram?.nodes?.length ? data.diagram : null
+
+  if (!diagram && data.explanation.trim().startsWith('{')) {
+    const parsed = tryParseExplainPayload(data.explanation)
+    if (parsed) {
+      explanation = parsed.explanation
+      diagram = parsed.diagram
+    }
+  }
+
+  const visual_steps =
+    diagram?.nodes?.length
+      ? diagram.nodes.slice(0, 8).map((n) => n.label)
+      : data.visual_steps?.filter((s) => !s.trim().startsWith('{')) ?? []
+
+  return { explanation, diagram, visual_steps }
+}
+
+/** Re-layout nodes in a top-down grid so AI row/col values cannot stack shapes on top of each other. */
+function autoLayoutDiagram(diagram: DiagramData): DiagramData {
+  const nodes = diagram.nodes
+  if (nodes.length === 0) return diagram
+
+  const incoming = new Map<string, number>()
+  const children = new Map<string, string[]>()
+  nodes.forEach((n) => {
+    incoming.set(n.id, 0)
+    children.set(n.id, [])
+  })
+  for (const e of diagram.edges) {
+    if (children.has(e.from) && incoming.has(e.to)) {
+      children.get(e.from)!.push(e.to)
+      incoming.set(e.to, (incoming.get(e.to) ?? 0) + 1)
+    }
+  }
+
+  let roots = nodes.filter((n) => (incoming.get(n.id) ?? 0) === 0)
+  if (roots.length === 0) {
+    roots = [...nodes].sort((a, b) => a.row - b.row || a.col - b.col).slice(0, 1)
+  }
+
+  const level = new Map<string, number>()
+  const queue = roots.map((r) => r.id)
+  roots.forEach((r) => level.set(r.id, 0))
+
+  while (queue.length > 0) {
+    const id = queue.shift()!
+    const lv = level.get(id) ?? 0
+    for (const child of children.get(id) ?? []) {
+      const next = lv + 1
+      if (!level.has(child) || (level.get(child) ?? 0) < next) {
+        level.set(child, next)
+        queue.push(child)
+      }
+    }
+  }
+
+  nodes.forEach((n) => {
+    if (!level.has(n.id)) level.set(n.id, Math.max(0, n.row))
+  })
+
+  const byLevel = new Map<number, DiagramNode[]>()
+  for (const n of nodes) {
+    const lv = level.get(n.id) ?? 0
+    if (!byLevel.has(lv)) byLevel.set(lv, [])
+    byLevel.get(lv)!.push(n)
+  }
+
+  const laidOut: DiagramNode[] = []
+  const maxLevel = Math.max(...byLevel.keys())
+  for (let lv = 0; lv <= maxLevel; lv += 1) {
+    const rowNodes = byLevel.get(lv) ?? []
+    rowNodes.sort((a, b) => a.col - b.col || a.label.localeCompare(b.label))
+    const count = rowNodes.length
+    rowNodes.forEach((n, idx) => {
+      laidOut.push({ ...n, row: lv, col: idx - Math.floor((count - 1) / 2) })
+    })
+  }
+
+  return { ...diagram, nodes: laidOut }
+}
+
+type Rect = { x: number; y: number; w: number; h: number }
+
+function rectsOverlap(a: Rect, b: Rect, pad = 12): boolean {
+  return !(
+    a.x + a.w + pad < b.x ||
+    b.x + b.w + pad < a.x ||
+    a.y + a.h + pad < b.y ||
+    b.y + b.h + pad < a.y
+  )
+}
+
+function estimateLabelSize(text: string): { w: number; h: number } {
+  const len = Math.max(4, Math.min(text.length, 24))
+  return { w: 16 + len * 7, h: 28 }
+}
+
+function placeEdgeLabel(
+  startX: number,
+  startY: number,
+  endX: number,
+  endY: number,
+  nodeRects: Rect[],
+  label: string,
+): { x: number; y: number } | null {
+  const mx = (startX + endX) / 2
+  const my = (startY + endY) / 2
+  const dx = endX - startX
+  const dy = endY - startY
+  const len = Math.hypot(dx, dy) || 1
+  const px = -dy / len
+  const py = dx / len
+  const { w, h } = estimateLabelSize(label)
+
+  for (const off of [36, -36, 52, -52, 20, -20]) {
+    const x = mx + px * off - w / 2
+    const y = my + py * off - h / 2
+    const rect = { x, y, w, h }
+    if (!nodeRects.some((n) => rectsOverlap(rect, n))) return { x, y }
+  }
+  return null
+}
+
 const TOKEN_KEY = 'sc_token'
-/** Dev: Vite proxies /api -> FastAPI. Prod or override: set VITE_API_URL (e.g. http://127.0.0.1:8765). */
-const API = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? '/api' : 'http://127.0.0.1:8765')
+/** Dev: Vite proxies /api -> FastAPI. Prod or override: set VITE_API_URL (e.g. http://127.0.0.1:8000). */
+const API = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? '/api' : 'http://127.0.0.1:8000')
 
 function formatApiError(detail: unknown): string {
   if (typeof detail === 'string') return detail
@@ -139,7 +290,16 @@ export default function App() {
   useEffect(() => {
     if (!selectedProjectId || !user) { setChatHistory([]); return }
     void apiFetch(`/projects/${selectedProjectId}/chat`)
-      .then(r => r.ok ? r.json() : []).then(setChatHistory)
+      .then(r => r.ok ? r.json() : [])
+      .then((msgs: ChatMessage[]) =>
+        setChatHistory(
+          msgs.map((m) =>
+            m.role === 'assistant'
+              ? { ...m, content: displayExplanationText(m.content) }
+              : m,
+          ),
+        ),
+      )
   }, [selectedProjectId, user])
 
   const scrollToAuth = () => {
@@ -157,9 +317,15 @@ export default function App() {
     }
   }
 
+  const clearAiCanvasShapes = (editor: Editor) => {
+    const ids = [...editor.getCurrentPageShapeIds()]
+    if (ids.length) editor.deleteShapes(ids)
+  }
+
   const drawVisualStepsOnCanvas = (steps: string[]) => {
     const editor = editorRef.current
     if (!editor || steps.length === 0) return
+    clearAiCanvasShapes(editor)
     const shapes = steps.slice(0, 8).map((step, i) => ({
       id: createShapeId(), type: 'geo', x: 160, y: 140 + i * 130,
       props: { geo: 'rectangle', w: 320, h: 90, richText: toRichText(`${i + 1}. ${step}`), color: 'black', size: 'm' },
@@ -172,12 +338,15 @@ export default function App() {
     const editor = editorRef.current
     if (!editor || diagram.nodes.length === 0) return
 
-    const NODE_W = 260
-    const NODE_H = 80
-    const COL_GAP = 320
-    const ROW_GAP = 180
-    const BASE_X = 120
-    const BASE_Y = 120
+    diagram = autoLayoutDiagram(diagram)
+    clearAiCanvasShapes(editor)
+
+    const NODE_W = 280
+    const NODE_H = 88
+    const COL_GAP = 420
+    const ROW_GAP = 240
+    const BASE_X = 160
+    const BASE_Y = 160
     type TldrawColor = 'black' | 'blue' | 'green' | 'red' | 'orange' | 'violet' | 'yellow' | 'grey' | 'light-blue' | 'light-green' | 'light-red' | 'light-violet' | 'white'
     const TLDRAW_COLORS: Set<string> = new Set([
       'black', 'blue', 'green', 'red', 'orange', 'violet', 'yellow',
@@ -210,6 +379,11 @@ export default function App() {
     }
     editor.createShapes(nodeShapes)
 
+    const nodeRects: Rect[] = diagram.nodes.map((node) => {
+      const p = posMap.get(node.id)!
+      return { x: p.x, y: p.y, w: NODE_W, h: NODE_H }
+    })
+
     const arrowShapes: Parameters<typeof editor.createShapes>[0] = []
     const labelShapes: Parameters<typeof editor.createShapes>[0] = []
 
@@ -218,21 +392,40 @@ export default function App() {
       const to = posMap.get(edge.to)
       if (!from || !to) continue
 
-      let startX: number, startY: number, endX: number, endY: number
-      if (from.y === to.y) {
-        if (from.x < to.x) {
-          startX = from.x + NODE_W; startY = from.y + NODE_H / 2
-          endX = to.x; endY = to.y + NODE_H / 2
+      const fromCx = from.x + NODE_W / 2
+      const fromCy = from.y + NODE_H / 2
+      const toCx = to.x + NODE_W / 2
+      const toCy = to.y + NODE_H / 2
+      const dx = toCx - fromCx
+      const dy = toCy - fromCy
+
+      let startX: number
+      let startY: number
+      let endX: number
+      let endY: number
+
+      if (Math.abs(dx) >= Math.abs(dy)) {
+        if (dx >= 0) {
+          startX = from.x + NODE_W
+          startY = fromCy
+          endX = to.x
+          endY = toCy
         } else {
-          startX = from.x; startY = from.y + NODE_H / 2
-          endX = to.x + NODE_W; endY = to.y + NODE_H / 2
+          startX = from.x
+          startY = fromCy
+          endX = to.x + NODE_W
+          endY = toCy
         }
-      } else if (from.y < to.y) {
-        startX = from.x + NODE_W / 2; startY = from.y + NODE_H
-        endX = to.x + NODE_W / 2; endY = to.y
+      } else if (dy > 0) {
+        startX = fromCx
+        startY = from.y + NODE_H
+        endX = toCx
+        endY = to.y
       } else {
-        startX = from.x + NODE_W / 2; startY = from.y
-        endX = to.x + NODE_W / 2; endY = to.y + NODE_H
+        startX = fromCx
+        startY = from.y
+        endX = toCx
+        endY = to.y + NODE_H
       }
 
       arrowShapes.push({
@@ -246,11 +439,14 @@ export default function App() {
       })
 
       if (edge.label) {
-        labelShapes.push({
-          id: createShapeId(), type: 'text',
-          x: (startX + endX) / 2 + 10, y: (startY + endY) / 2 - 12,
-          props: { richText: toRichText(edge.label), size: 's', color: 'grey' },
-        })
+        const pos = placeEdgeLabel(startX, startY, endX, endY, nodeRects, edge.label)
+        if (pos) {
+          labelShapes.push({
+            id: createShapeId(), type: 'text',
+            x: pos.x, y: pos.y,
+            props: { richText: toRichText(edge.label), size: 's', color: 'grey' },
+          })
+        }
       }
     }
 
@@ -325,16 +521,16 @@ export default function App() {
         const errBody = await res.text()
         throw new Error(errBody || `AI request failed (${res.status})`)
       }
-      const data = (await res.json()) as ExplainResponse
-      const explanationText = displayExplanationText(data.explanation)
-      const hasDiagram = data.diagram && data.diagram.nodes && data.diagram.nodes.length > 0
+      const data = normalizeExplainResponse((await res.json()) as ExplainResponse)
+      const explanationText = data.explanation
+      const hasDiagram = Boolean(data.diagram?.nodes?.length)
       const suffix = hasDiagram ? '\n\n[Diagram generated on canvas]' : ''
       setChatHistory((prev) => [...prev, { role: 'assistant', content: explanationText + suffix }])
 
-      if (hasDiagram) {
-        if (editorRef.current) drawDiagramOnCanvas(data.diagram!)
-        else pendingDiagramRef.current = { diagram: data.diagram! }
-      } else if (data.visual_steps && data.visual_steps.length > 0) {
+      if (hasDiagram && data.diagram) {
+        if (editorRef.current) drawDiagramOnCanvas(data.diagram)
+        else pendingDiagramRef.current = { diagram: data.diagram }
+      } else if (data.visual_steps.length > 0) {
         if (editorRef.current) drawVisualStepsOnCanvas(data.visual_steps)
         else pendingDiagramRef.current = { steps: data.visual_steps }
       }

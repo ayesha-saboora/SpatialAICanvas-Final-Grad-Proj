@@ -5,6 +5,9 @@ import re
 import uuid
 
 from dotenv import load_dotenv
+
+load_dotenv()
+
 from fastapi import FastAPI, HTTPException, Depends, Header, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
@@ -13,8 +16,6 @@ from sqlalchemy.orm import Session
 
 from database import init_db, get_db, User, Project, ChatMessage
 from auth import hash_password, verify_password, create_token, decode_token
-
-load_dotenv()
 
 app = FastAPI(title="StudyCanvas API")
 
@@ -33,7 +34,18 @@ app.add_middleware(
 
 @app.on_event("startup")
 def startup():
-    init_db()
+    try:
+        init_db()
+    except Exception as exc:
+        raise RuntimeError(
+            "Could not connect to PostgreSQL. Start the database with "
+            "'docker compose up -d' from the project root, then retry."
+        ) from exc
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
 
 # ---------------------------------------------------------------------------
@@ -225,6 +237,11 @@ def get_llm_client() -> OpenAI:
     return OpenAI(base_url=OLLAMA_BASE_URL, api_key="ollama")
 
 
+def _is_openai_quota_error(exc: Exception) -> bool:
+    msg = str(exc).lower()
+    return "insufficient_quota" in msg or "exceeded your current quota" in msg
+
+
 def extract_json(text: str) -> dict | None:
     text = text.strip()
     text = re.sub(r"^```(?:json)?\s*", "", text)
@@ -261,6 +278,98 @@ def salvage_explanation_from_wrapped_json(raw: str) -> str | None:
     if isinstance(exp, str) and exp.strip():
         return exp.strip()
     return None
+
+
+def _looks_like_json_blob(text: str) -> bool:
+    t = text.strip()
+    return t.startswith("{") and ('"explanation"' in t or '"diagram"' in t)
+
+
+def _regex_extract_explanation(text: str) -> str | None:
+    m = re.search(
+        r'"explanation"\s*:\s*"((?:[^"\\]|\\.)*)"',
+        text,
+        re.DOTALL,
+    )
+    if not m:
+        return None
+    try:
+        return json.loads(f'"{m.group(1)}"').strip()
+    except json.JSONDecodeError:
+        return m.group(1).replace("\\n", "\n").replace('\\"', '"').strip()
+
+
+def _try_extract_diagram_from_text(text: str) -> dict | None:
+    data = extract_json(text)
+    if isinstance(data, dict) and isinstance(data.get("diagram"), dict):
+        validated = validate_diagram(data["diagram"])
+        if validated:
+            return validated
+    i = text.find('"diagram"')
+    if i < 0:
+        return None
+    brace = text.find("{", i)
+    if brace < 0:
+        return None
+    depth = 0
+    for j in range(brace, len(text)):
+        if text[j] == "{":
+            depth += 1
+        elif text[j] == "}":
+            depth -= 1
+            if depth == 0:
+                try:
+                    chunk = json.loads(text[brace : j + 1])
+                except json.JSONDecodeError:
+                    return None
+                if isinstance(chunk, dict):
+                    return validate_diagram(chunk)
+                return None
+    return None
+
+
+def parse_explain_content(content: str, topic: str) -> tuple[str, dict | None, list[str]]:
+    """Normalize LLM output into clean explanation text, optional diagram, and fallback steps."""
+    raw = (content or "").strip()
+    data = extract_json(raw)
+    explanation = ""
+    diagram: dict | None = None
+
+    if isinstance(data, dict):
+        explanation = str(data.get("explanation", "")).strip()
+        if isinstance(data.get("diagram"), dict):
+            diagram = validate_diagram(data["diagram"])
+        if not explanation:
+            explanation = salvage_explanation_from_wrapped_json(raw) or raw
+    else:
+        explanation = salvage_explanation_from_wrapped_json(raw) or raw
+        diagram = _try_extract_diagram_from_text(raw)
+
+    if explanation.strip().startswith("{"):
+        inner = salvage_explanation_from_wrapped_json(explanation)
+        if inner:
+            explanation = inner
+        if not diagram:
+            diagram = _try_extract_diagram_from_text(explanation) or _try_extract_diagram_from_text(raw)
+
+    if _looks_like_json_blob(explanation):
+        regex_exp = _regex_extract_explanation(raw) or _regex_extract_explanation(explanation)
+        if regex_exp:
+            explanation = regex_exp
+
+    explanation = explanation.strip()
+    if _looks_like_json_blob(explanation):
+        salvaged = salvage_explanation_from_wrapped_json(explanation)
+        if salvaged:
+            explanation = salvaged
+
+    visual_steps: list[str] = []
+    if diagram and diagram.get("nodes"):
+        visual_steps = [n["label"] for n in diagram["nodes"][:8]]
+    elif explanation and not _looks_like_json_blob(explanation):
+        visual_steps = contextual_visual_steps(topic, explanation)[:8]
+
+    return explanation, diagram, visual_steps
 
 
 VALID_SHAPES = {"rectangle", "ellipse", "diamond"}
@@ -442,14 +551,33 @@ def explain(payload: ExplainRequest, user: User = Depends(get_current_user), db:
         raise HTTPException(422, "Provide either messages or text")
 
     try:
-        create_kw: dict = {"model": model, "temperature": 0.3, "messages": llm_messages}
-        if LLM_PROVIDER == "openai":
-            create_kw["response_format"] = {"type": "json_object"}
+        create_kw: dict = {
+            "model": model,
+            "temperature": 0.3,
+            "messages": llm_messages,
+            "response_format": {"type": "json_object"},
+        }
         completion = client.chat.completions.create(**create_kw)
     except Exception as exc:
-        if LLM_PROVIDER != "openai":
-            raise HTTPException(502, "Local AI request failed. Make sure Ollama is running. Run: ollama run llama3.2:3b") from exc
-        raise HTTPException(502, f"AI request failed: {exc}") from exc
+        # If OpenAI quota is exhausted, automatically fall back to local Ollama.
+        if LLM_PROVIDER == "openai" and _is_openai_quota_error(exc):
+            try:
+                fallback_client = OpenAI(base_url=OLLAMA_BASE_URL, api_key="ollama")
+                completion = fallback_client.chat.completions.create(
+                    model=OLLAMA_MODEL,
+                    temperature=0.3,
+                    messages=llm_messages,
+                )
+            except Exception as fallback_exc:
+                raise HTTPException(
+                    502,
+                    "OpenAI quota exceeded and local fallback failed. "
+                    "Start Ollama and run: ollama run llama3.2:3b",
+                ) from fallback_exc
+        else:
+            if LLM_PROVIDER != "openai":
+                raise HTTPException(502, "Local AI request failed. Make sure Ollama is running. Run: ollama run llama3.2:3b") from exc
+            raise HTTPException(502, f"AI request failed: {exc}") from exc
 
     content = (completion.choices[0].message.content or "").strip()
     if not content:
@@ -458,39 +586,7 @@ def explain(payload: ExplainRequest, user: User = Depends(get_current_user), db:
             visual_steps=contextual_visual_steps(user_topic, ""),
         )
 
-    data = extract_json(content)
-    if not data:
-        explanation = salvage_explanation_from_wrapped_json(content) or content
-        diagram = None
-        visual_steps = contextual_visual_steps(user_topic, explanation)
-    else:
-        explanation = str(data.get("explanation", "")).strip()
-        if not explanation:
-            explanation = salvage_explanation_from_wrapped_json(content) or content
-        diagram = None
-        diagram_raw = data.get("diagram")
-        if isinstance(diagram_raw, dict):
-            diagram = validate_diagram(diagram_raw)
-        visual_steps = []
-        if diagram and diagram.get("nodes"):
-            visual_steps = [n["label"] for n in diagram["nodes"][:8]]
-        else:
-            raw_steps = data.get("visual_steps", [])
-            visual_steps = [str(s).strip() for s in raw_steps if str(s).strip()]
-            _placeholder = re.compile(
-                r"^(topic|definition|how it works|example|summary|step\s*\d+|overview)$",
-                re.I,
-            )
-            if visual_steps and all(_placeholder.match(s.strip()) for s in visual_steps):
-                visual_steps = []
-        if not visual_steps:
-            visual_steps = contextual_visual_steps(user_topic, explanation)
-
-    fixed_exp = salvage_explanation_from_wrapped_json(explanation)
-    if fixed_exp:
-        explanation = fixed_exp
-        if not diagram or not diagram.get("nodes"):
-            visual_steps = contextual_visual_steps(user_topic, explanation)[:8]
+    explanation, diagram, visual_steps = parse_explain_content(content, user_topic)
 
     if payload.project_id:
         user_content = payload.messages[-1].content if payload.messages else payload.text
@@ -530,10 +626,3 @@ async def extract_document(file: UploadFile = File(...), _user: User = Depends(g
     return {"text": text.strip()[:15000], "filename": fname}
 
 
-# ---------------------------------------------------------------------------
-# Health
-# ---------------------------------------------------------------------------
-
-@app.get("/health")
-def health():
-    return {"status": "ok"}

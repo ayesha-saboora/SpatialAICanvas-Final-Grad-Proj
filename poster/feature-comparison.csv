@@ -1,0 +1,14 @@
+Feature,StudyCanvas,ChatGPT,Miro,Notion AI,Notes
+AI text Q&A,2,2,0,2,"2=Full, 1=Partial, 0=No"
+Infinite canvas / whiteboard,2,0,2,0,
+PDF/DOCX upload for study,2,1,1,2,"ChatGPT: upload but not on canvas"
+AI understands canvas layout & selection,2,0,0,0,Core gap your project fills
+Vision on canvas images / PDF pages,2,2,0,0,
+Auto STEM flowcharts on workspace,2,0,0,0,
+Math graphs plotted on canvas,2,0,0,0,
+LaTeX math in AI responses,2,2,0,1,
+Streaming real-time AI responses,2,2,0,1,
+Voice input,2,0,0,0,
+Chat + canvas in one workspace,2,0,0,0,
+Project history by subject,2,0,2,2,
+Editable on-board AI visuals,2,0,2,0,"Miro: manual only, not AI-generated STEM"

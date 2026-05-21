@@ -1,7 +1,8 @@
-import os
+﻿import os
 import io
 import json
 import re
+import time
 import uuid
 
 from dotenv import load_dotenv
@@ -10,6 +11,7 @@ load_dotenv()
 
 from fastapi import FastAPI, HTTPException, Depends, Header, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from openai import OpenAI
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -97,11 +99,49 @@ class ChatMsg(BaseModel):
     content: str
 
 
+class CanvasShapeContext(BaseModel):
+    id: str
+    type: str
+    label: str = ""
+    x: float = 0
+    y: float = 0
+    w: float = 0
+    h: float = 0
+    color: str = ""
+    geo: str = ""
+    isDocument: bool = False
+
+
+class CanvasImageContext(BaseModel):
+    id: str
+    name: str = ""
+    x: float = 0
+    y: float = 0
+    w: float = 0
+    h: float = 0
+    data_url: str | None = None
+
+
+class CanvasEdgeContext(BaseModel):
+    label: str = ""
+    fromLabel: str = ""
+    toLabel: str = ""
+
+
 class ExplainRequest(BaseModel):
     messages: list[ChatMsg] = []
     text: str = ""
     project_id: str | None = None
     language: str = Field(default="English")
+    canvas_shapes: list[CanvasShapeContext] = []
+    canvas_edges: list[CanvasEdgeContext] = []
+    canvas_summary: str = ""
+    selected_shape_ids: list[str] = []
+    selected_labels: list[str] = []
+    document_text: str = ""
+    canvas_images: list[CanvasImageContext] = []
+    visual_type: str = ""  # flowchart | graph | labeled_diagram
+    generate_visual: bool = False
 
 
 class ExplainResponse(BaseModel):
@@ -116,65 +156,169 @@ class ExplainResponse(BaseModel):
 
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "ollama").lower()
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+OPENAI_VISION_MODEL = os.getenv("OPENAI_VISION_MODEL", "llama-3.2-11b-vision-preview")
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434/v1")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:3b")
 
-SYSTEM_PROMPT = (
-    "You are StudyCanvas AI — an elite STEM tutor with professor-level depth across:\n"
-    "- CS & Software Engineering: algorithms, data structures, OS, networking, ML/AI, databases, compilers, architecture, cryptography, distributed systems\n"
-    "- Mechanical Engineering: thermodynamics, fluid mechanics, statics & dynamics, materials science, heat transfer, machine design, manufacturing\n"
-    "- Electrical Engineering: circuit analysis, signals & systems, electromagnetism, digital logic, control systems, power, VLSI\n"
-    "- Civil, Chemical, Biomedical Engineering\n"
-    "- Physics: classical mechanics, quantum mechanics, E&M, thermodynamics, optics, relativity, particle & nuclear physics\n"
-    "- Chemistry: organic mechanisms, inorganic, physical chemistry, biochemistry, molecular orbitals, spectroscopy, named reactions\n"
-    "- Mathematics: calculus, linear algebra, ODE/PDE, probability, discrete math, complex analysis, topology, abstract algebra\n"
-    "- Medicine & Biology: anatomy (all systems), physiology, cell & molecular biology, genetics, microbiology, immunology, pharmacology, pathology, neuroscience, histology\n\n"
-    "RULES FOR EXPLANATIONS:\n"
-    "- Give DEEP, expert-level answers — explain WHY and HOW, not just definitions\n"
-    "- Use proper terminology but remain accessible\n"
-    "- Include formulas in plain text: F=ma, E=mc^2, delta_G=delta_H-T*delta_S, PV=nRT, V=IR\n"
-    "- For chemistry: explain electron flow, orbital interactions, mechanisms step by step\n"
-    "- For medicine: explain pathophysiology, anatomical relationships, clinical significance\n"
-    "- For engineering: include design trade-offs and real-world applications\n"
-    "- For physics: derive from first principles when helpful\n\n"
-    "RESPONSE FORMAT — Return ONLY valid JSON:\n"
-    '{"explanation":"8-20 sentence expert explanation with formulas and deep concepts.",'
-    '"diagram":{"title":"Descriptive Title",'
-    '"nodes":[{"id":"n1","label":"Short Label","row":0,"col":0,"shape":"rectangle","color":"black"}],'
-    '"edges":[{"from":"n1","to":"n2","label":"relationship"}]}}\n\n'
-    "DIAGRAM RULES:\n"
-    "- 6-16 nodes covering key concepts\n"
-    "- shape: \"rectangle\" (processes), \"ellipse\" (inputs/outputs/start/end), \"diamond\" (decisions)\n"
-    '- color: "black","blue","green","red","orange","violet","yellow" — group related concepts by color\n'
-    "- row=vertical position (0=top), col=horizontal (0=left)\n"
-    "- Flowcharts: sequential rows. Trees: root row 0, children spread at row+1. Cycles: loop layout\n"
-    "- EVERY node must connect to at least one other via edges\n"
-    "- Edge labels: 1-4 words (produces, inhibits, catalyzes, flows to, binds to)\n"
-    "- For anatomy: spatial layout matching body structure\n"
-    "- For circuits: match circuit topology\n"
-    "- For reactions: reactants -> intermediates -> products\n\n"
-    "EXAMPLE for 'explain photosynthesis':\n"
-    '{"explanation":"Photosynthesis converts light energy into chemical energy stored in glucose...",'
-    '"diagram":{"title":"Photosynthesis",'
+SPATIAL_JSON_SUFFIX = (
+    '\nReturn ONLY a valid JSON object: {"explanation":"your answer here","diagram":null}\n'
+    "Set diagram to null — do NOT generate a new diagram unless explicitly asked to draw one."
+)
+
+CANVAS_OVERVIEW_PROMPT = (
+    "You are StudyCanvas AI with full awareness of the user's whiteboard.\n"
+    "The user wants to understand what TOPICS and SUBJECT MATTER are on their canvas.\n"
+    "Explain the board as a coherent academic summary — the main subject, key concepts, "
+    "and how they connect in the learning flow.\n"
+    "NEVER list shape types, coordinates, pixel positions, or shape IDs.\n"
+    "NEVER say 'there is a rectangle at (x,y)'. Speak about the IDEAS on the board.\n"
+    + SPATIAL_JSON_SUFFIX
+)
+
+SELECTION_EXPLAIN_PROMPT = (
+    "You are StudyCanvas AI. The user selected specific element(s) on their canvas and wants "
+    "an explanation of THAT concept/step ONLY.\n"
+    "Focus entirely on the selected label(s). Explain what it means, why it matters, and "
+    "how it fits into the broader topic on the board.\n"
+    "Do NOT explain a different topic. Do NOT ignore the selection.\n"
+    + SPATIAL_JSON_SUFFIX
+)
+
+DOCUMENT_QUERY_PROMPT = (
+    "You are StudyCanvas AI. Answer the user's question using the UPLOADED DOCUMENT content "
+    "provided in their message. Quote or paraphrase the document. If the answer is not in "
+    "the document, say so clearly.\n"
+    + SPATIAL_JSON_SUFFIX
+)
+
+VISION_QUERY_PROMPT = (
+    "You are StudyCanvas AI with vision. The user attached image(s) from their canvas.\n"
+    "Describe and explain what you see in the image(s). Connect it to the user's question.\n"
+    "If the image shows a diagram, chart, graph, anatomy drawing, or formula, explain its meaning in detail.\n"
+    "Name visible labels, parts, steps, or equations. Do NOT say you cannot see the image.\n"
+    + SPATIAL_JSON_SUFFIX
+)
+
+TEACH_EXPLAIN_PROMPT = (
+    "You are StudyCanvas AI, a STEM tutor.\n"
+    "Answer the user's question clearly with real terminology and LaTeX formulas "
+    "(inline $F=ma$ or block $$E=mc^2$$).\n"
+    "Do NOT generate a diagram — the app will ask the user if they want a visual separately.\n"
+    "Return ONLY a valid JSON object — no markdown, no backticks.\n\n"
+    'Format: {"explanation":"4-8 sentences answering the question",'
+    '"diagram":null,"offer_visual":true}\n\n'
+    "Set offer_visual to true when a flowchart, labeled diagram, or math graph would help "
+    "(processes, anatomy/systems, functions). Set false for simple factual Q&A.\n"
+    "JSON ESCAPING: double LaTeX backslashes inside strings (\\\\frac, \\\\Delta)."
+)
+
+FLOWCHART_VISUAL_PROMPT = (
+    "You are StudyCanvas AI, a STEM tutor. Your diagram must EXPLAIN HOW something works — "
+    "like a textbook flowchart a professor would draw on a whiteboard. "
+    "NOT a concept map, NOT a mind map, NOT a list of related terms linked together.\n"
+    "Return ONLY a valid JSON object — no markdown, no backticks, no prose outside the JSON.\n\n"
+    "Format:\n"
+    '{"explanation":"2-4 sentences introducing the visual.",'
+    '"diagram":{"type":"flowchart","title":"Topic Title",'
+    '"nodes":[{"id":"n1","label":"Short step label","row":0,"col":0,"shape":"rectangle","color":"black","role":"start"}],'
+    '"edges":[{"from":"n1","to":"n2","label":"condition or action"}]}}\n\n'
+    "DIAGRAM PHILOSOPHY — teach the PROCEDURE, not the vocabulary:\n"
+    "- A reader should follow arrows top-to-bottom and understand HOW the process executes.\n"
+    "- Each node = ONE concrete step, state, decision, or outcome in the execution.\n"
+    "- Process nodes use verb phrases: 'Compute mid = (lo+hi)/2', 'Compare T with A[mid]'.\n"
+    "- Decision nodes are QUESTIONS: 'T == A[mid]?', 'lo <= hi?', 'Is list sorted?'.\n"
+    "- Outcome nodes state results: 'Return index', 'Target not found', 'Emit photon'.\n"
+    "- The main execution path must be obvious — no orphan nodes, no decorative filler.\n\n"
+    "PICK ONE diagram style based on the topic:\n"
+    "  ALGORITHM  → top-down flowchart with decisions, branches, and loop-back edges.\n"
+    "  MECHANISM  → left-to-right pipeline: input → transformation stages → output.\n"
+    "  SYSTEM     → layered architecture: user/data layer → processing → storage/output.\n"
+    "  FORMULA    → derive step-by-step: given values → substitute → simplify → result.\n\n"
+    "NODE RULES (8-12 nodes — quality over quantity):\n"
+    "- Every node must sit on the main execution path OR a decision branch.\n"
+    "- Set role on each node: start | input | process | decision | outcome | formula | termination.\n"
+    "- Shapes: rectangle=process, diamond=decision, ellipse=input/outcome/termination.\n"
+    "- Colors by role:\n"
+    "    black=start   blue=input/prerequisite   green=process/action\n"
+    "    yellow=decision   orange=success/output   violet=formula/key equation\n"
+    "    red=failure/edge case/termination\n"
+    "- Include 1-2 formula nodes with LaTeX when math is central (e.g. '$mid = \\\\lfloor (lo+hi)/2 \\\\rfloor$').\n"
+    "- Labels: 3-8 words max. Specific and actionable — never vague nouns alone.\n"
+    "  BAD: 'Sorted List', 'Repeat Process', 'Target Element', 'Definition'\n"
+    "  GOOD: 'Require sorted array A', 'Set lo=0, hi=n-1', 'T == A[mid]?', 'Search left half [lo, mid-1]'\n\n"
+    "EDGE RULES — edges carry the logic:\n"
+    "- Edge labels tell the reader WHY we go that direction.\n"
+    "  Decision branches: 'yes', 'no', 'T < A[mid]', 'T > A[mid]', 'match found', 'list empty'.\n"
+    "  Process flow: 'then', 'next', 'init', 'update bounds', 'repeat'.\n"
+    "  BANNED vague labels: 'requires', 'produces', 'derived from', 'related to', 'leads to', 'involves'.\n"
+    "- Include loop-back edges for iterative algorithms (e.g. after updating bounds, edge back to the loop condition).\n"
+    "- Every node needs at least one edge. No disconnected nodes.\n\n"
+    "LAYOUT: rows = execution order (0=first step). cols = branch position (0=center, negative=left branch, positive=right).\n\n"
+    "EXAMPLE (binary search — follow this pattern for algorithms):\n"
+    '{"explanation":"Binary search finds a target T in a sorted array A by repeatedly halving the search range...",'
+    '"diagram":{"title":"Binary Search",'
     '"nodes":['
-    '{"id":"n1","label":"Sunlight","row":0,"col":1,"shape":"ellipse","color":"yellow"},'
-    '{"id":"n2","label":"H2O + CO2","row":1,"col":0,"shape":"ellipse","color":"blue"},'
-    '{"id":"n3","label":"Light Reactions","row":2,"col":0,"shape":"rectangle","color":"green"},'
-    '{"id":"n4","label":"Calvin Cycle","row":2,"col":2,"shape":"rectangle","color":"green"},'
-    '{"id":"n5","label":"ATP + NADPH","row":3,"col":1,"shape":"rectangle","color":"orange"},'
-    '{"id":"n6","label":"Glucose C6H12O6","row":4,"col":0,"shape":"ellipse","color":"orange"},'
-    '{"id":"n7","label":"O2 Released","row":4,"col":2,"shape":"ellipse","color":"red"}],'
+    '{"id":"n1","label":"Start: sorted A, target T","row":0,"col":0,"shape":"rectangle","color":"black","role":"start"},'
+    '{"id":"n2","label":"Set lo=0, hi=n-1","row":1,"col":0,"shape":"rectangle","color":"green","role":"process"},'
+    '{"id":"n3","label":"lo <= hi?","row":2,"col":0,"shape":"diamond","color":"yellow","role":"decision"},'
+    '{"id":"n4","label":"Compute mid = (lo+hi)/2","row":3,"col":0,"shape":"rectangle","color":"green","role":"process"},'
+    '{"id":"n5","label":"T == A[mid]?","row":4,"col":0,"shape":"diamond","color":"yellow","role":"decision"},'
+    '{"id":"n6","label":"Return mid (found)","row":5,"col":-2,"shape":"ellipse","color":"orange","role":"outcome"},'
+    '{"id":"n7","label":"T < A[mid]?","row":5,"col":0,"shape":"diamond","color":"yellow","role":"decision"},'
+    '{"id":"n8","label":"Search left: hi = mid-1","row":6,"col":-2,"shape":"rectangle","color":"green","role":"process"},'
+    '{"id":"n9","label":"Search right: lo = mid+1","row":6,"col":2,"shape":"rectangle","color":"green","role":"process"},'
+    '{"id":"n10","label":"Return -1 (not found)","row":3,"col":2,"shape":"ellipse","color":"red","role":"termination"}'
+    '],'
     '"edges":['
-    '{"from":"n1","to":"n3","label":"energy"},'
-    '{"from":"n2","to":"n3","label":"absorbed"},'
-    '{"from":"n3","to":"n5","label":"produces"},'
-    '{"from":"n5","to":"n4","label":"powers"},'
-    '{"from":"n4","to":"n6","label":"synthesizes"},'
-    '{"from":"n3","to":"n7","label":"releases"}]}}\n\n'
-    "Return ONLY the JSON object. No markdown. No backticks. No extra text.\n\n"
-    "CRITICAL: diagram node labels must name real concepts for the user's topic "
-    '(e.g. for photosynthesis: "Light reactions", "Chloroplast", "Calvin cycle"). '
-    'Never use placeholder labels like "Topic", "Definition", "Summary", or "Step 1".'
+    '{"from":"n1","to":"n2","label":"init"},'
+    '{"from":"n2","to":"n3","label":""},'
+    '{"from":"n3","to":"n4","label":"yes"},'
+    '{"from":"n3","to":"n10","label":"no → done"},'
+    '{"from":"n4","to":"n5","label":""},'
+    '{"from":"n5","to":"n6","label":"yes → found"},'
+    '{"from":"n5","to":"n7","label":"no"},'
+    '{"from":"n7","to":"n8","label":"yes → go left"},'
+    '{"from":"n7","to":"n9","label":"no → go right"},'
+    '{"from":"n8","to":"n3","label":"repeat"},'
+    '{"from":"n9","to":"n3","label":"repeat"}'
+    ']}}\n\n'
+    "JSON ESCAPING — IMPORTANT: any LaTeX backslash inside a JSON string must be DOUBLED. "
+    "Write \\\\frac{a}{b}, \\\\Delta, \\\\alpha (two backslashes), NEVER a single backslash."
+)
+
+GRAPH_VISUAL_PROMPT = (
+    "You are StudyCanvas AI. The user wants a MATHEMATICAL GRAPH drawn programmatically on their canvas.\n"
+    "Return ONLY valid JSON — no markdown.\n\n"
+    'Format: {"explanation":"1-2 sentences about the graph",'
+    '"diagram":{"type":"graph","title":"Parent Functions",'
+    '"functions":[{"expr":"x^2","label":"f(x)=x²","color":"blue"},'
+    '{"expr":"sin(x)","label":"f(x)=sin(x)","color":"red"}],'
+    '"xMin":-6.28,"xMax":6.28,"yMin":-4,"yMax":4}}\n\n'
+    "RULES:\n"
+    "- expr uses math.js syntax: x^2, sin(x), cos(x), tan(x), sqrt(x), abs(x), log(x), exp(x), 1/x\n"
+    "- Include 1-6 functions relevant to the topic.\n"
+    "- Set xMin/xMax/yMin/yMax to frame the curves nicely.\n"
+    "- Use distinct colors: blue, red, green, orange, violet, black.\n"
+    "- For parent-function requests, plot the standard forms (x, x^2, |x|, sin(x), etc.)."
+)
+
+LABELED_DIAGRAM_PROMPT = (
+    "You are StudyCanvas AI. The user wants a LABELED EDUCATIONAL DIAGRAM on their canvas — "
+    "like an anatomy chart or system overview with named parts and connecting arrows.\n"
+    "NOT a step-by-step algorithm flowchart. Show PARTS, REGIONS, and RELATIONSHIPS spatially.\n"
+    "Return ONLY valid JSON — no markdown.\n\n"
+    'Format: {"explanation":"2-3 sentences about the diagram",'
+    '"diagram":{"type":"labeled_diagram","title":"Digestive System",'
+    '"nodes":[{"id":"n1","label":"Mouth","row":0,"col":0,"shape":"ellipse","color":"blue"},'
+    '{"id":"n2","label":"Esophagus","row":1,"col":0,"shape":"rectangle","color":"green"}],'
+    '"edges":[{"from":"n1","to":"n2","label":"swallows"}]}}\n\n'
+    "RULES:\n"
+    "- 12-22 nodes naming the key parts/components.\n"
+    "- row = vertical position (0=top), col = horizontal position (0=center, negative=left, positive=right).\n"
+    "- Use ellipse for organs/parts, rectangle for structures/processes.\n"
+    "- Edges show flow, connection, or hierarchy. Label important edges.\n"
+    "- Layout should resemble how a textbook diagram is organized (top-to-bottom flow for systems).\n"
+    "- Colors: blue=structure, green=process/path, orange=output, yellow=decision branch."
 )
 
 
@@ -184,6 +328,204 @@ def _user_topic_for_request(payload: ExplainRequest) -> str:
             if msg.role == "user" and msg.content.strip():
                 return msg.content.strip()[:300]
     return (payload.text or "").strip()[:300] or "the question"
+
+
+def _selected_image_ids(payload: ExplainRequest) -> set[str]:
+    sel = set(payload.selected_shape_ids)
+    return {img.id for img in payload.canvas_images if img.id in sel}
+
+
+def _resolve_visual_type(payload: ExplainRequest, question: str) -> str | None:
+    """Return flowchart | graph | labeled_diagram when user explicitly wants a visual."""
+    if payload.generate_visual and payload.visual_type in ("flowchart", "graph", "labeled_diagram"):
+        return payload.visual_type
+
+    q = question.lower()
+    graph_kw = (
+        "graph", "plot", "function graph", "f(x)", "parabola", "parent function",
+        "sketch the", "draw a graph", "draw graph", "plot the", "y =", "y=",
+        "sin(", "cos(", "tan(", "coordinate", "axes",
+    )
+    labeled_kw = (
+        "anatomy", "labeled diagram", "labelled diagram", "parts of", "structure of",
+        "digestive", "organ", "system diagram", "label the", "components of",
+        "anatomical", "body parts", "show the parts",
+    )
+    flow_kw = (
+        "flowchart", "flow chart", "process flow", "algorithm steps", "draw a diagram",
+        "draw diagram", "visualize", "create a diagram", "make a diagram", "on my canvas",
+    )
+
+    if any(w in q for w in graph_kw):
+        return "graph"
+    if any(w in q for w in labeled_kw):
+        return "labeled_diagram"
+    if any(w in q for w in flow_kw):
+        return "flowchart"
+    if payload.generate_visual:
+        return "flowchart"
+    return None
+
+
+def _detect_interaction_mode(payload: ExplainRequest, question: str) -> str:
+    """teach | visual_* | canvas_overview | selection | document | vision"""
+    q = question.lower().strip()
+    has_canvas = bool(payload.canvas_summary or len(payload.canvas_shapes) >= 2)
+    has_selection = bool(payload.selected_labels or payload.selected_shape_ids)
+    has_doc = bool(payload.document_text.strip())
+    has_images = bool(payload.canvas_images)
+    image_selected = bool(_selected_image_ids(payload))
+
+    vision_words = (
+        "image", "picture", "photo", "screenshot", "see in", "look at",
+        "what does this show", "describe the", "pdf page", "explain this",
+        "what is this", "what's in", "tell me about this",
+    )
+    doc_words = (
+        "document", "pdf", "uploaded", "my notes", "the file", "my doc",
+        "from the reading", "in the text",
+    )
+    canvas_words = (
+        "on my canvas", "on the canvas", "on my board", "on the board",
+        "what's on", "what is on", "summarize my", "summarize the",
+        "what am i studying", "what topics", "what's drawn",
+    )
+    selection_words = (
+        "this step", "this node", "this box", "this shape", "selected",
+        "explain this", "what does this mean", "tell me about this",
+    )
+
+    visual_type = _resolve_visual_type(payload, question)
+    if visual_type:
+        return f"visual_{visual_type}"
+
+    if has_images and image_selected:
+        return "vision"
+    if has_images and any(w in q for w in vision_words):
+        return "vision"
+    if has_doc and any(w in q for w in doc_words):
+        return "document"
+    if has_selection and not image_selected and (
+        any(w in q for w in selection_words)
+        or len(q.split()) <= 10
+    ):
+        return "selection"
+    if has_canvas and any(w in q for w in canvas_words):
+        return "canvas_overview"
+    if has_canvas and any(w in q for w in ("summarize", "overview", "what have i")):
+        return "canvas_overview"
+    return "teach"
+
+
+def _format_spatial_context(payload: ExplainRequest) -> str:
+    parts: list[str] = []
+
+    if payload.canvas_summary.strip():
+        parts.append("CANVAS TOPIC SUMMARY:\n" + payload.canvas_summary.strip())
+
+    if payload.canvas_edges:
+        flow = [
+            f"  {e.fromLabel} → {e.toLabel}" + (f" ({e.label})" if e.label else "")
+            for e in payload.canvas_edges[:20]
+            if e.fromLabel and e.toLabel
+        ]
+        if flow:
+            parts.append("CONCEPT FLOW ON BOARD:\n" + "\n".join(flow))
+
+    if payload.selected_labels:
+        parts.append(
+            "USER SELECTED THESE CONCEPTS (explain ONLY these):\n"
+            + "\n".join(f"  - {lbl}" for lbl in payload.selected_labels)
+        )
+    elif payload.selected_shape_ids:
+        parts.append("SELECTED SHAPE IDS: " + ", ".join(payload.selected_shape_ids))
+
+    if payload.document_text.strip():
+        doc = payload.document_text.strip()
+        if len(doc) > 15000:
+            doc = doc[:14997] + "..."
+        parts.append("FULL UPLOADED DOCUMENT TEXT:\n" + doc)
+
+    return "\n\n".join(parts)
+
+
+def _build_user_prompt_text(payload: ExplainRequest, question: str, mode: str) -> str:
+    spatial = _format_spatial_context(payload)
+    blocks = [f"User question: {question}", f"Language: {payload.language}"]
+    if spatial:
+        blocks.append(spatial)
+    if mode == "teach":
+        blocks.append(
+            'Return ONLY: {"explanation":"...","diagram":null,"offer_visual":true or false}'
+        )
+    elif mode.startswith("visual_"):
+        blocks.append("Return ONLY the JSON object with explanation and diagram.")
+    else:
+        blocks.append('Return ONLY: {"explanation":"...","diagram":null}')
+    return "\n\n".join(blocks)
+
+
+def _system_prompt_for_mode(mode: str) -> str:
+    if mode == "visual_flowchart":
+        return FLOWCHART_VISUAL_PROMPT
+    if mode == "visual_graph":
+        return GRAPH_VISUAL_PROMPT
+    if mode == "visual_labeled_diagram":
+        return LABELED_DIAGRAM_PROMPT
+    if mode == "canvas_overview":
+        return CANVAS_OVERVIEW_PROMPT
+    if mode == "selection":
+        return SELECTION_EXPLAIN_PROMPT
+    if mode == "document":
+        return DOCUMENT_QUERY_PROMPT
+    if mode == "vision":
+        return VISION_QUERY_PROMPT
+    return TEACH_EXPLAIN_PROMPT
+
+
+def _prepare_llm_messages(payload: ExplainRequest) -> tuple[list[dict], str, bool, str]:
+    """Returns (messages, model_name, has_vision_images, interaction_mode)."""
+    history = payload.messages or []
+    if not history and not payload.text:
+        raise HTTPException(422, "Provide either messages or text")
+
+    if history:
+        window = history[-4:]
+        question = window[-1].content if window[-1].role == "user" else _user_topic_for_request(payload)
+    else:
+        question = payload.text
+        window = []
+
+    mode = _detect_interaction_mode(payload, question)
+    system = _system_prompt_for_mode(mode)
+    llm_messages: list[dict] = [{"role": "system", "content": system}]
+
+    for msg in window[:-1]:
+        if msg.role in ("user", "assistant") and msg.content.strip():
+            llm_messages.append({"role": msg.role, "content": msg.content})
+
+    user_text = _build_user_prompt_text(payload, question, mode)
+    vision_images = [img for img in payload.canvas_images if img.data_url][:3]
+    selected_imgs = _selected_image_ids(payload)
+    use_vision = mode == "vision" or (
+        selected_imgs
+        and vision_images
+        and any(img.id in selected_imgs for img in vision_images)
+    )
+
+    if use_vision and vision_images:
+        # Prefer selected images; otherwise send all available images.
+        imgs_to_send = [img for img in vision_images if img.id in selected_imgs] if selected_imgs else vision_images
+        content: list[dict] = [{"type": "text", "text": user_text}]
+        for img in imgs_to_send[:2]:
+            content.append({"type": "image_url", "image_url": {"url": img.data_url}})
+        llm_messages.append({"role": "user", "content": content})
+        model = OPENAI_VISION_MODEL if LLM_PROVIDER == "openai" else OLLAMA_MODEL
+        return llm_messages, model, True, mode
+
+    llm_messages.append({"role": "user", "content": user_text})
+    model = OPENAI_MODEL if LLM_PROVIDER == "openai" else OLLAMA_MODEL
+    return llm_messages, model, False, mode
 
 
 def contextual_visual_steps(topic: str, explanation: str, max_steps: int = 8) -> list[str]:
@@ -233,6 +575,9 @@ def get_llm_client() -> OpenAI:
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
             raise HTTPException(500, "OPENAI_API_KEY is missing")
+        base_url = os.getenv("OPENAI_BASE_URL")
+        if base_url:
+            return OpenAI(api_key=api_key, base_url=base_url)
         return OpenAI(api_key=api_key)
     return OpenAI(base_url=OLLAMA_BASE_URL, api_key="ollama")
 
@@ -247,16 +592,20 @@ def extract_json(text: str) -> dict | None:
     text = re.sub(r"^```(?:json)?\s*", "", text)
     text = re.sub(r"\s*```\s*$", "", text)
     text = text.strip()
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        pass
+    candidates = [text, _escape_bad_json_backslashes(text)]
+    for cand in candidates:
+        try:
+            return json.loads(cand)
+        except json.JSONDecodeError:
+            continue
     match = re.search(r"\{[\s\S]*\}", text)
     if match:
-        try:
-            return json.loads(match.group())
-        except json.JSONDecodeError:
-            pass
+        raw = match.group()
+        for cand in (raw, _escape_bad_json_backslashes(raw)):
+            try:
+                return json.loads(cand)
+            except json.JSONDecodeError:
+                continue
     return None
 
 
@@ -302,7 +651,7 @@ def _regex_extract_explanation(text: str) -> str | None:
 def _try_extract_diagram_from_text(text: str) -> dict | None:
     data = extract_json(text)
     if isinstance(data, dict) and isinstance(data.get("diagram"), dict):
-        validated = validate_diagram(data["diagram"])
+        validated = validate_visual(data["diagram"])
         if validated:
             return validated
     i = text.find('"diagram"')
@@ -323,22 +672,24 @@ def _try_extract_diagram_from_text(text: str) -> dict | None:
                 except json.JSONDecodeError:
                     return None
                 if isinstance(chunk, dict):
-                    return validate_diagram(chunk)
+                    return validate_visual(chunk)
                 return None
     return None
 
 
-def parse_explain_content(content: str, topic: str) -> tuple[str, dict | None, list[str]]:
-    """Normalize LLM output into clean explanation text, optional diagram, and fallback steps."""
+def parse_explain_content(content: str, topic: str) -> tuple[str, dict | None, list[str], bool]:
+    """Normalize LLM output into explanation, optional visual, and offer_visual flag."""
     raw = (content or "").strip()
     data = extract_json(raw)
     explanation = ""
     diagram: dict | None = None
+    offer_visual = False
 
     if isinstance(data, dict):
         explanation = str(data.get("explanation", "")).strip()
+        offer_visual = bool(data.get("offer_visual", False))
         if isinstance(data.get("diagram"), dict):
-            diagram = validate_diagram(data["diagram"])
+            diagram = validate_visual(data["diagram"])
         if not explanation:
             explanation = salvage_explanation_from_wrapped_json(raw) or raw
     else:
@@ -363,20 +714,96 @@ def parse_explain_content(content: str, topic: str) -> tuple[str, dict | None, l
         if salvaged:
             explanation = salvaged
 
-    visual_steps: list[str] = []
-    if diagram and diagram.get("nodes"):
-        visual_steps = [n["label"] for n in diagram["nodes"][:8]]
-    elif explanation and not _looks_like_json_blob(explanation):
-        visual_steps = contextual_visual_steps(topic, explanation)[:8]
-
-    return explanation, diagram, visual_steps
+    return explanation, diagram, [], offer_visual
 
 
 VALID_SHAPES = {"rectangle", "ellipse", "diamond"}
 VALID_COLORS = {"black", "blue", "green", "red", "orange", "violet", "yellow", "grey"}
+VALID_ROLES = {"start", "input", "process", "decision", "outcome", "formula", "termination"}
+ROLE_DEFAULTS: dict[str, tuple[str, str]] = {
+    "start": ("rectangle", "black"),
+    "input": ("ellipse", "blue"),
+    "process": ("rectangle", "green"),
+    "decision": ("diamond", "yellow"),
+    "outcome": ("ellipse", "orange"),
+    "formula": ("rectangle", "violet"),
+    "termination": ("ellipse", "red"),
+}
+VAGUE_EDGE_LABELS = {
+    "requires", "produces", "derived from", "related to", "leads to", "involves",
+    "associated with", "connected to", "part of", "includes", "contains",
+}
 
 
-def validate_diagram(raw: dict) -> dict | None:
+def _normalize_node(n: dict, index: int) -> dict:
+    role = str(n.get("role", "")).lower()
+    if role not in VALID_ROLES:
+        role = ""
+    shape = str(n.get("shape", ""))
+    color = str(n.get("color", ""))
+    if role in ROLE_DEFAULTS:
+        default_shape, default_color = ROLE_DEFAULTS[role]
+        if shape not in VALID_SHAPES:
+            shape = default_shape
+        if color not in VALID_COLORS:
+            color = default_color
+    if shape not in VALID_SHAPES:
+        shape = "rectangle"
+    if color not in VALID_COLORS:
+        color = "black"
+    return {
+        "id": str(n["id"]),
+        "label": str(n["label"])[:80],
+        "row": max(0, int(n.get("row", index))),
+        "col": int(n.get("col", 0)),
+        "shape": shape,
+        "color": color,
+    }
+
+
+def validate_graph(raw: dict) -> dict | None:
+    if not isinstance(raw, dict):
+        return None
+    funcs_raw = raw.get("functions", [])
+    if not isinstance(funcs_raw, list) or len(funcs_raw) == 0:
+        return None
+    palette = ["blue", "red", "green", "orange", "violet", "black"]
+    valid_funcs = []
+    for i, f in enumerate(funcs_raw[:6]):
+        if not isinstance(f, dict):
+            continue
+        expr = str(f.get("expr", "")).strip()
+        if not expr:
+            continue
+        color = str(f.get("color", palette[i % len(palette)]))
+        if color not in VALID_COLORS:
+            color = palette[i % len(palette)]
+        valid_funcs.append({
+            "expr": expr[:120],
+            "label": str(f.get("label", f"f{i + 1}"))[:80],
+            "color": color,
+        })
+    if not valid_funcs:
+        return None
+
+    def _bound(key: str, default: float) -> float:
+        try:
+            return float(raw.get(key, default))
+        except (TypeError, ValueError):
+            return default
+
+    return {
+        "type": "graph",
+        "title": str(raw.get("title", "Graph"))[:100],
+        "functions": valid_funcs,
+        "xMin": _bound("xMin", -5),
+        "xMax": _bound("xMax", 5),
+        "yMin": _bound("yMin", -5),
+        "yMax": _bound("yMax", 5),
+    }
+
+
+def validate_diagram(raw: dict, max_nodes: int = 12) -> dict | None:
     if not isinstance(raw, dict):
         return None
     nodes_raw = raw.get("nodes", [])
@@ -386,19 +813,12 @@ def validate_diagram(raw: dict) -> dict | None:
 
     valid_nodes = []
     node_ids: set[str] = set()
-    for n in nodes_raw:
+    for i, n in enumerate(nodes_raw[:max_nodes]):
         if not isinstance(n, dict) or "id" not in n or "label" not in n:
             continue
-        nid = str(n["id"])
-        node_ids.add(nid)
-        valid_nodes.append({
-            "id": nid,
-            "label": str(n["label"])[:80],
-            "row": max(0, int(n.get("row", len(valid_nodes)))),
-            "col": max(0, int(n.get("col", 0))),
-            "shape": str(n.get("shape", "rectangle")) if n.get("shape") in VALID_SHAPES else "rectangle",
-            "color": str(n.get("color", "black")) if n.get("color") in VALID_COLORS else "black",
-        })
+        normalized = _normalize_node(n, i)
+        node_ids.add(normalized["id"])
+        valid_nodes.append(normalized)
 
     if not valid_nodes:
         return None
@@ -410,9 +830,31 @@ def validate_diagram(raw: dict) -> dict | None:
         fid = str(e.get("from", ""))
         tid = str(e.get("to", ""))
         if fid in node_ids and tid in node_ids and fid != tid:
-            valid_edges.append({"from": fid, "to": tid, "label": str(e.get("label", ""))[:40]})
+            label = str(e.get("label", ""))[:40].strip()
+            if label.lower() in VAGUE_EDGE_LABELS:
+                label = ""
+            valid_edges.append({"from": fid, "to": tid, "label": label})
 
-    return {"title": str(raw.get("title", "Diagram"))[:100], "nodes": valid_nodes, "edges": valid_edges}
+    dtype = str(raw.get("type", "flowchart")).lower()
+    if dtype not in ("flowchart", "labeled_diagram"):
+        dtype = "flowchart"
+
+    return {
+        "type": dtype,
+        "title": str(raw.get("title", "Diagram"))[:100],
+        "nodes": valid_nodes,
+        "edges": valid_edges,
+    }
+
+
+def validate_visual(raw: dict) -> dict | None:
+    if not isinstance(raw, dict):
+        return None
+    vtype = str(raw.get("type", "flowchart")).lower()
+    if vtype == "graph":
+        return validate_graph(raw)
+    max_nodes = 22 if vtype == "labeled_diagram" else 12
+    return validate_diagram(raw, max_nodes=max_nodes)
 
 
 # ---------------------------------------------------------------------------
@@ -524,39 +966,18 @@ def clear_chat(project_id: str, user: User = Depends(get_current_user), db: Sess
 @app.post("/ai/explain", response_model=ExplainResponse)
 def explain(payload: ExplainRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     client = get_llm_client()
-    model = OPENAI_MODEL if LLM_PROVIDER == "openai" else OLLAMA_MODEL
     user_topic = _user_topic_for_request(payload)
-
-    llm_messages: list[dict[str, str]] = [{"role": "system", "content": SYSTEM_PROMPT}]
-
-    if payload.messages:
-        for msg in payload.messages[-12:]:
-            if msg.role in ("user", "assistant") and msg.content.strip():
-                llm_messages.append({"role": msg.role, "content": msg.content})
-        if llm_messages[-1]["role"] == "user":
-            llm_messages[-1]["content"] = (
-                f"Topic: {llm_messages[-1]['content']}\n\n"
-                f"Language: {payload.language}\n\n"
-                "Generate a thorough expert-level explanation with a detailed visual diagram. Return ONLY valid JSON."
-            )
-    elif payload.text:
-        llm_messages.append({
-            "role": "user",
-            "content": (
-                f"Topic: {payload.text}\n\nLanguage: {payload.language}\n\n"
-                "Generate a thorough expert-level explanation with a detailed visual diagram. Return ONLY valid JSON."
-            ),
-        })
-    else:
-        raise HTTPException(422, "Provide either messages or text")
+    llm_messages, model, _has_vision, mode = _prepare_llm_messages(payload)
 
     try:
         create_kw: dict = {
             "model": model,
-            "temperature": 0.3,
+            "temperature": 0.25,
             "messages": llm_messages,
-            "response_format": {"type": "json_object"},
+            "max_tokens": 1400,
         }
+        if LLM_PROVIDER == "openai" and mode in ("teach", "visual_flowchart", "visual_graph", "visual_labeled_diagram") and not _has_vision:
+            create_kw["response_format"] = {"type": "json_object"}
         completion = client.chat.completions.create(**create_kw)
     except Exception as exc:
         # If OpenAI quota is exhausted, automatically fall back to local Ollama.
@@ -565,8 +986,9 @@ def explain(payload: ExplainRequest, user: User = Depends(get_current_user), db:
                 fallback_client = OpenAI(base_url=OLLAMA_BASE_URL, api_key="ollama")
                 completion = fallback_client.chat.completions.create(
                     model=OLLAMA_MODEL,
-                    temperature=0.3,
+                    temperature=0.2,
                     messages=llm_messages,
+                    max_tokens=600,
                 )
             except Exception as fallback_exc:
                 raise HTTPException(
@@ -581,12 +1003,12 @@ def explain(payload: ExplainRequest, user: User = Depends(get_current_user), db:
 
     content = (completion.choices[0].message.content or "").strip()
     if not content:
-        return ExplainResponse(
-            explanation="No explanation returned.",
-            visual_steps=contextual_visual_steps(user_topic, ""),
-        )
+        return ExplainResponse(explanation="No explanation returned.", visual_steps=[])
 
-    explanation, diagram, visual_steps = parse_explain_content(content, user_topic)
+    explanation, diagram, visual_steps, _offer_visual = parse_explain_content(content, user_topic)
+    if not mode.startswith("visual_"):
+        diagram = None
+        visual_steps = []
 
     if payload.project_id:
         user_content = payload.messages[-1].content if payload.messages else payload.text
@@ -595,6 +1017,217 @@ def explain(payload: ExplainRequest, user: User = Depends(get_current_user), db:
         db.commit()
 
     return ExplainResponse(explanation=explanation, diagram=diagram, visual_steps=visual_steps[:8])
+
+
+# ---------------------------------------------------------------------------
+# AI explain — STREAMING (SSE)
+# ---------------------------------------------------------------------------
+
+def _decode_so_far(buffer: str) -> str | None:
+    """Incrementally extract the current value of the `explanation` field from a
+    JSON-in-progress buffer. Returns the decoded string, or None if the field
+    has not started streaming yet. Stops at the first unescaped closing quote.
+
+    Preserves unknown backslash escapes (e.g. ``\\frac``, ``\\Delta``) as literal
+    ``\\X`` text rather than dropping the backslash, so LaTeX commands survive.
+    """
+    m = re.search(r'"explanation"\s*:\s*"', buffer)
+    if not m:
+        return None
+    i = m.end()
+    out: list[str] = []
+    escape = False
+    n = len(buffer)
+    while i < n:
+        c = buffer[i]
+        if escape:
+            if c == "n":
+                out.append("\n")
+            elif c == "t":
+                out.append("\t")
+            elif c == "r":
+                out.append("\r")
+            elif c == '"':
+                out.append('"')
+            elif c == "\\":
+                out.append("\\")
+            elif c == "/":
+                out.append("/")
+            else:
+                # Preserve unknown backslash escapes (LaTeX commands like \frac, \Delta, \beta).
+                out.append("\\")
+                out.append(c)
+            escape = False
+        elif c == "\\":
+            escape = True
+        elif c == '"':
+            break
+        else:
+            out.append(c)
+        i += 1
+    return "".join(out)
+
+
+def _escape_bad_json_backslashes(s: str) -> str:
+    """Make a JSON-shaped string from an LLM more tolerant of LaTeX commands.
+
+    LLMs often emit ``"\\frac{...}"`` as ``"\\frac{...}"`` (single backslash)
+    which JSON's strict parser turns into a form-feed character. This function
+    finds odd-length runs of backslashes followed by a non-JSON-escape letter
+    and adds one more backslash so ``json.loads`` produces the literal LaTeX
+    command instead. ``\\n``, ``\\t``, ``\\r``, ``\\u`` and friends pass through
+    unchanged.
+    """
+    valid_escape_followers = {"n", "t", "r", '"', "\\", "/", "u"}
+    out: list[str] = []
+    i = 0
+    n = len(s)
+    while i < n:
+        if s[i] != "\\":
+            out.append(s[i])
+            i += 1
+            continue
+        j = i
+        while j < n and s[j] == "\\":
+            j += 1
+        run = j - i
+        nxt = s[j] if j < n else ""
+        if run % 2 == 1 and nxt and nxt not in valid_escape_followers:
+            out.append("\\" * (run + 1))
+        else:
+            out.append("\\" * run)
+        i = j
+    return "".join(out)
+
+
+@app.post("/ai/explain-stream")
+def explain_stream(payload: ExplainRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    client = get_llm_client()
+    user_topic = _user_topic_for_request(payload)
+    llm_messages, model, has_vision, mode = _prepare_llm_messages(payload)
+
+    create_kw: dict = {
+        "model": model,
+        "temperature": 0.25,
+        "messages": llm_messages,
+        "max_tokens": 1400,
+        "stream": True,
+    }
+    if LLM_PROVIDER == "openai" and mode in ("teach", "visual_flowchart", "visual_graph", "visual_labeled_diagram") and not has_vision:
+        create_kw["response_format"] = {"type": "json_object"}
+
+    project_id = payload.project_id
+    user_content = payload.messages[-1].content if payload.messages else payload.text
+    skip_diagram = not mode.startswith("visual_")
+
+    def _emit_text(new_text: str):
+        """Split big bursts so the UI animates naturally even when the upstream
+        provider consolidates chunks. Total animation overhead capped at ~500ms.
+        """
+        if len(new_text) <= 32:
+            yield f"data: {json.dumps({'type': 'text', 'content': new_text})}\n\n"
+            return
+        piece_size = max(16, len(new_text) // 80)
+        i = 0
+        n = len(new_text)
+        while i < n:
+            piece = new_text[i : i + piece_size]
+            i += piece_size
+            yield f"data: {json.dumps({'type': 'text', 'content': piece})}\n\n"
+            time.sleep(0.005)
+
+    def event_stream():
+        buffer = ""
+        last_emitted = 0
+        try:
+            stream = client.chat.completions.create(**create_kw)
+            for chunk in stream:
+                if not chunk.choices:
+                    continue
+                delta = chunk.choices[0].delta.content or ""
+                if not delta:
+                    continue
+                buffer += delta
+                current = _decode_so_far(buffer)
+                if current is None:
+                    continue
+                if len(current) > last_emitted:
+                    new_text = current[last_emitted:]
+                    last_emitted = len(current)
+                    yield from _emit_text(new_text)
+        except Exception as exc:
+            if has_vision and LLM_PROVIDER == "openai":
+                try:
+                    fallback_msgs = [m if not isinstance(m.get("content"), list) else {**m, "content": m["content"][0]["text"]} for m in llm_messages]
+                    fallback_msgs[0] = {"role": "system", "content": VISION_QUERY_PROMPT}
+                    stream = client.chat.completions.create(
+                        model=OPENAI_MODEL,
+                        temperature=0.25,
+                        messages=fallback_msgs,
+                        max_tokens=1400,
+                        stream=True,
+                    )
+                    buffer = ""
+                    last_emitted = 0
+                    for chunk in stream:
+                        if not chunk.choices:
+                            continue
+                        delta = chunk.choices[0].delta.content or ""
+                        if not delta:
+                            continue
+                        buffer += delta
+                        current = _decode_so_far(buffer)
+                        if current is None:
+                            continue
+                        if len(current) > last_emitted:
+                            new_text = current[last_emitted:]
+                            last_emitted = len(current)
+                            yield from _emit_text(new_text)
+                except Exception:
+                    yield f"data: {json.dumps({'type': 'error', 'message': f'AI request failed: {exc}'})}\n\n"
+                    return
+            else:
+                yield f"data: {json.dumps({'type': 'error', 'message': f'AI request failed: {exc}'})}\n\n"
+                return
+
+        # Use _decode_so_far so the final explanation matches what we streamed
+        # (preserves LaTeX backslashes). parse_explain_content provides the diagram
+        # and visual_steps which use the same backslash-tolerant parser.
+        streamed_explanation = _decode_so_far(buffer) or ""
+        parsed_explanation, diagram, visual_steps, offer_visual = parse_explain_content(buffer, user_topic)
+        explanation = streamed_explanation or parsed_explanation
+        if skip_diagram:
+            diagram = None
+            visual_steps = []
+        elif mode == "teach":
+            offer_visual = False
+
+        if len(explanation) > last_emitted:
+            tail = explanation[last_emitted:]
+            yield f"data: {json.dumps({'type': 'text', 'content': tail})}\n\n"
+
+        if project_id:
+            try:
+                db.add(ChatMessage(id=str(uuid.uuid4()), project_id=project_id, role="user", content=user_content))
+                db.add(ChatMessage(id=str(uuid.uuid4()), project_id=project_id, role="assistant", content=explanation))
+                db.commit()
+            except Exception:
+                db.rollback()
+
+        yield (
+            "data: "
+            + json.dumps({
+                "type": "done",
+                "explanation": explanation,
+                "diagram": diagram,
+                "visual_steps": visual_steps[:8],
+                "mode": mode,
+                "offer_visual": offer_visual,
+            })
+            + "\n\n"
+        )
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream", headers={"X-Accel-Buffering": "no"})
 
 
 # ---------------------------------------------------------------------------
@@ -621,8 +1254,11 @@ async def extract_document(file: UploadFile = File(...), _user: User = Depends(g
         raise HTTPException(400, f"Unsupported file type: {file.content_type}")
 
     if not text.strip():
+        if fname.lower().endswith(".pdf"):
+            return {"text": "", "filename": fname, "note": "No extractable text — pages can still be viewed on canvas"}
         raise HTTPException(422, "No text could be extracted from the file")
 
-    return {"text": text.strip()[:15000], "filename": fname}
+    return {"text": text.strip()[:20000], "filename": fname}
+
 
 

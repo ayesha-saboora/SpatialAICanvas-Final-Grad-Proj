@@ -287,19 +287,59 @@ FLOWCHART_VISUAL_PROMPT = (
 )
 
 GRAPH_VISUAL_PROMPT = (
-    "You are StudyCanvas AI. The user wants a MATHEMATICAL GRAPH drawn programmatically on their canvas.\n"
+    "You are StudyCanvas AI, a STEM visualization expert. The user wants a MATHEMATICAL GRAPH "
+    "drawn programmatically on their canvas, styled like Desmos/GeoGebra for clear student learning.\n"
     "Return ONLY valid JSON — no markdown.\n\n"
     'Format: {"explanation":"1-2 sentences about the graph",'
     '"diagram":{"type":"graph","title":"Parent Functions",'
-    '"functions":[{"expr":"x^2","label":"f(x)=x²","color":"blue"},'
-    '{"expr":"sin(x)","label":"f(x)=sin(x)","color":"red"}],'
+    '"subtitle":"Comparing quadratic, cubic, and trigonometric behavior",'
+    '"functions":[{"expr":"x^2","label":"y=x²","color":"blue"},'
+    '{"expr":"x^3","label":"y=x³","color":"green"},'
+    '{"expr":"sin(x)","label":"y=sin(x)","color":"red"}],'
+    '"axisLabels":{"x":"x","y":"y"},'
+    '"important_points":[{"x":0,"y":0,"label":"(0,0)"},{"x":1.57,"y":1,"label":"(π/2, 1)"}],'
     '"xMin":-6.28,"xMax":6.28,"yMin":-4,"yMax":4}}\n\n'
     "RULES:\n"
     "- expr uses math.js syntax: x^2, sin(x), cos(x), tan(x), sqrt(x), abs(x), log(x), exp(x), 1/x\n"
-    "- Include 1-6 functions relevant to the topic.\n"
-    "- Set xMin/xMax/yMin/yMax to frame the curves nicely.\n"
-    "- Use distinct colors: blue, red, green, orange, violet, black.\n"
-    "- For parent-function requests, plot the standard forms (x, x^2, |x|, sin(x), etc.)."
+    "- Include 1-6 functions relevant to the topic. Plot the standard forms for parent functions.\n"
+    "- title states the concept; subtitle states the educational objective in one short phrase.\n"
+    "- PREFERRED COLOR PALETTE: quadratic=blue, cubic=green, trigonometric=red. Others: orange, violet, black.\n"
+    "- label each function directly with its equation (e.g. y=x², y=sin(x)).\n"
+    "- important_points: list key points (intercepts, turning points, maxima/minima). "
+    "For y=sin(x) include (0,0),(π/2,1),(π,0),(3π/2,-1) as decimals.\n"
+    "- Choose xMin/xMax/yMin/yMax so every curve stays visible — if a fast-growing function "
+    "dominates, tighten the y-range so smaller curves (e.g. sin) remain readable.\n"
+    "- JSON numbers only (use 1.57 not π/2 in x/y fields; π/2 may appear inside label strings)."
+)
+
+GRAPH_REVIEW_PROMPT = (
+    "You are a STEM Visualization Review Assistant inside StudyCanvas. The user has a graph and "
+    "wants it analyzed and IMPROVED. Review it for: (1) mathematical correctness — do the plotted "
+    "functions match the title/intent? e.g. for 'Parent Functions' the cubic must be y=x^3, not "
+    "y=x^3-3x; (2) educational effectiveness; (3) readability; (4) axes & scaling — does one curve "
+    "dominate and hide others?; (5) visual design; (6) labeling; (7) important points; "
+    "(8) titles & context.\n"
+    "Return ONLY valid JSON — no markdown.\n\n"
+    'Format: {"explanation":"State the issues you found, why they matter for learning, and the '
+    'concrete fixes you applied (2-5 short sentences).",'
+    '"diagram":{"type":"graph","title":"Parent Functions",'
+    '"subtitle":"Comparing quadratic, cubic, and trigonometric behavior",'
+    '"functions":[{"expr":"x^2","label":"y=x²","color":"blue"},'
+    '{"expr":"x^3","label":"y=x³","color":"green"},'
+    '{"expr":"sin(x)","label":"y=sin(x)","color":"red"}],'
+    '"axisLabels":{"x":"x","y":"y"},'
+    '"important_points":[{"x":0,"y":0,"label":"(0,0)"}],'
+    '"xMin":-6.28,"xMax":6.28,"yMin":-4,"yMax":4}}\n\n'
+    "RULES:\n"
+    "- The diagram is the CORRECTED, improved graph (clean parent/standard forms unless the user "
+    "asked for transformations).\n"
+    "- expr uses math.js syntax: x^2, sin(x), cos(x), sqrt(x), abs(x), log(x), exp(x), 1/x.\n"
+    "- PREFERRED PALETTE: quadratic=blue, cubic=green, trigonometric=red.\n"
+    "- Add a clear title + objective subtitle, direct per-curve labels, and important_points "
+    "(intercepts, turning points, maxima/minima, key sine values).\n"
+    "- Pick ranges so all curves stay visible; tighten y-range when a steep curve hides others.\n"
+    "- explanation must read like feedback: issues found → why they matter → improvements made.\n"
+    "- JSON numbers only in x/y fields (1.57 not π/2)."
 )
 
 LABELED_DIAGRAM_PROMPT = (
@@ -335,11 +375,37 @@ def _selected_image_ids(payload: ExplainRequest) -> set[str]:
     return {img.id for img in payload.canvas_images if img.id in sel}
 
 
+INTENT_MIN_CONF = 0.45        # non-visual intents must clear this to skip keywords
+VISUAL_INTENT_MIN_CONF = 0.30  # visual intents have distinctive phrasing, lower bar
+
+
 def _resolve_visual_type(payload: ExplainRequest, question: str) -> str | None:
-    """Return flowchart | graph | labeled_diagram when user explicitly wants a visual."""
+    """Return flowchart | graph | labeled_diagram when user wants a visual.
+
+    Primary path: the trained Prompt Intent Classifier (48-class taxonomy).
+    Falls back to the legacy keyword heuristic if the model is unsure/unavailable.
+    """
     if payload.generate_visual and payload.visual_type in ("flowchart", "graph", "labeled_diagram"):
         return payload.visual_type
 
+    # Trained model decides the diagram type (replaces keyword matching).
+    try:
+        from intent_predict import classify_intent, visual_type_for_intent
+
+        intent, conf = classify_intent(question)
+    except Exception:
+        intent, conf = None, 0.0
+        visual_type_for_intent = lambda _i: None  # noqa: E731
+
+    if intent is not None:
+        visual = visual_type_for_intent(intent)
+        if visual and conf >= VISUAL_INTENT_MIN_CONF:
+            return visual
+        if not visual and conf >= INTENT_MIN_CONF:
+            # Model is confident this is a non-visual (chat) intent.
+            return "flowchart" if payload.generate_visual else None
+
+    # Fallback: legacy keyword heuristic (model missing or low confidence).
     q = question.lower()
     graph_kw = (
         "graph", "plot", "function graph", "f(x)", "parabola", "parent function",
@@ -365,6 +431,32 @@ def _resolve_visual_type(payload: ExplainRequest, question: str) -> str | None:
     if payload.generate_visual:
         return "flowchart"
     return None
+
+
+VISUALIZATION_IMPROVEMENT_INTENT = "VISUALIZATION_IMPROVEMENT"
+_REVIEW_KW = (
+    "improve this graph", "improve the graph", "review this graph", "review the graph",
+    "critique this graph", "fix this graph", "make this graph better", "better graph",
+    "improve this plot", "review this plot", "improve this chart", "review this chart",
+    "improve this visualization", "review this visualization", "improve my graph",
+    "fix my graph", "improve this figure", "whats wrong with this graph",
+    "what's wrong with this graph", "is this graph correct", "improve the scaling",
+    "redraw this graph", "improve this diagram graph",
+)
+
+
+def _wants_graph_review(payload: ExplainRequest, question: str) -> bool:
+    """Detect a 'review / improve this graph' request via trained model + keywords."""
+    try:
+        from intent_predict import classify_intent
+
+        intent, conf = classify_intent(question)
+        if intent == VISUALIZATION_IMPROVEMENT_INTENT and conf >= VISUAL_INTENT_MIN_CONF:
+            return True
+    except Exception:
+        pass
+    q = question.lower()
+    return any(kw in q for kw in _REVIEW_KW)
 
 
 def _detect_interaction_mode(payload: ExplainRequest, question: str) -> str:
@@ -394,6 +486,10 @@ def _detect_interaction_mode(payload: ExplainRequest, question: str) -> str:
         "this step", "this node", "this box", "this shape", "selected",
         "explain this", "what does this mean", "tell me about this",
     )
+
+    # Visualization Review: critique an existing graph and regenerate an improved one.
+    if _wants_graph_review(payload, question):
+        return "visual_graph_review"
 
     visual_type = _resolve_visual_type(payload, question)
     if visual_type:
@@ -470,6 +566,8 @@ def _system_prompt_for_mode(mode: str) -> str:
         return FLOWCHART_VISUAL_PROMPT
     if mode == "visual_graph":
         return GRAPH_VISUAL_PROMPT
+    if mode == "visual_graph_review":
+        return GRAPH_REVIEW_PROMPT
     if mode == "visual_labeled_diagram":
         return LABELED_DIAGRAM_PROMPT
     if mode == "canvas_overview":
@@ -792,14 +890,37 @@ def validate_graph(raw: dict) -> dict | None:
         except (TypeError, ValueError):
             return default
 
+    # Optional educational fields
+    axis_raw = raw.get("axisLabels") or raw.get("axis_labels") or {}
+    axis_labels = {
+        "x": str(axis_raw.get("x", "x"))[:24] if isinstance(axis_raw, dict) else "x",
+        "y": str(axis_raw.get("y", "y"))[:24] if isinstance(axis_raw, dict) else "y",
+    }
+
+    points = []
+    pts_raw = raw.get("points") or raw.get("important_points") or []
+    if isinstance(pts_raw, list):
+        for p in pts_raw[:12]:
+            if not isinstance(p, dict):
+                continue
+            try:
+                px = float(p.get("x"))
+                py = float(p.get("y"))
+            except (TypeError, ValueError):
+                continue
+            points.append({"x": px, "y": py, "label": str(p.get("label", ""))[:40]})
+
     return {
         "type": "graph",
         "title": str(raw.get("title", "Graph"))[:100],
+        "subtitle": str(raw.get("subtitle", ""))[:140],
         "functions": valid_funcs,
         "xMin": _bound("xMin", -5),
         "xMax": _bound("xMax", 5),
         "yMin": _bound("yMin", -5),
         "yMax": _bound("yMax", 5),
+        "axisLabels": axis_labels,
+        "points": points,
     }
 
 
@@ -976,7 +1097,7 @@ def explain(payload: ExplainRequest, user: User = Depends(get_current_user), db:
             "messages": llm_messages,
             "max_tokens": 1400,
         }
-        if LLM_PROVIDER == "openai" and mode in ("teach", "visual_flowchart", "visual_graph", "visual_labeled_diagram") and not _has_vision:
+        if LLM_PROVIDER == "openai" and mode in ("teach", "visual_flowchart", "visual_graph", "visual_graph_review", "visual_labeled_diagram") and not _has_vision:
             create_kw["response_format"] = {"type": "json_object"}
         completion = client.chat.completions.create(**create_kw)
     except Exception as exc:
@@ -1113,7 +1234,7 @@ def explain_stream(payload: ExplainRequest, user: User = Depends(get_current_use
         "max_tokens": 1400,
         "stream": True,
     }
-    if LLM_PROVIDER == "openai" and mode in ("teach", "visual_flowchart", "visual_graph", "visual_labeled_diagram") and not has_vision:
+    if LLM_PROVIDER == "openai" and mode in ("teach", "visual_flowchart", "visual_graph", "visual_graph_review", "visual_labeled_diagram") and not has_vision:
         create_kw["response_format"] = {"type": "json_object"}
 
     project_id = payload.project_id
@@ -1260,5 +1381,120 @@ async def extract_document(file: UploadFile = File(...), _user: User = Depends(g
 
     return {"text": text.strip()[:20000], "filename": fname}
 
+
+# ---------------------------------------------------------------------------
+# ASL sign recognition (Sign Shortcuts + AAC)
+# ---------------------------------------------------------------------------
+
+class SignPredictResponse(BaseModel):
+    letter: str
+    confidence: float
+
+
+@app.post("/accessibility/predict-sign", response_model=SignPredictResponse)
+async def predict_sign_endpoint(
+    file: UploadFile = File(...),
+    _user: User = Depends(get_current_user),
+):
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(400, "Upload an image file (JPEG or PNG)")
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(400, "Empty image upload")
+    try:
+        from sign_predict import predict_sign
+
+        result = predict_sign(raw)
+    except FileNotFoundError as exc:
+        raise HTTPException(503, str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(422, f"Could not read sign image: {exc}") from exc
+    return SignPredictResponse(letter=result["letter"], confidence=result["confidence"])
+
+
+# ---------------------------------------------------------------------------
+# Handwritten math symbol recognition
+# ---------------------------------------------------------------------------
+
+class MathPredictResponse(BaseModel):
+    symbol: str
+    confidence: float
+    alternatives: list[dict[str, float | str]] = []
+
+
+class MathExpressionResponse(BaseModel):
+    expression: str
+    symbols: list[MathPredictResponse] = []
+
+
+@app.post("/math/recognize-symbol", response_model=MathPredictResponse)
+async def predict_math_symbol_endpoint(
+    file: UploadFile = File(...),
+    _user: User = Depends(get_current_user),
+):
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(400, "Upload an image file (JPEG or PNG)")
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(400, "Empty image upload")
+    try:
+        from math_predict import predict_math_symbol
+
+        result = predict_math_symbol(raw)
+    except FileNotFoundError as exc:
+        raise HTTPException(503, str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(422, f"Could not read math symbol image: {exc}") from exc
+    return MathPredictResponse(**result)
+
+
+@app.post("/math/recognize-expression", response_model=MathExpressionResponse)
+async def predict_math_expression_endpoint(
+    file: UploadFile = File(...),
+    _user: User = Depends(get_current_user),
+):
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(400, "Upload an image file (JPEG or PNG)")
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(400, "Empty image upload")
+    try:
+        from math_recognize_expression import recognize_expression_image
+
+        result = recognize_expression_image(raw)
+    except FileNotFoundError as exc:
+        raise HTTPException(503, str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(422, f"Could not read math expression: {exc}") from exc
+    return MathExpressionResponse(
+        expression=result["expression"],
+        symbols=[MathPredictResponse(**s) for s in result["symbols"]],
+    )
+
+
+# ---------------------------------------------------------------------------
+# Prompt Intent Classifier (trained model that routes diagram generation)
+# ---------------------------------------------------------------------------
+
+class IntentRequest(BaseModel):
+    text: str
+
+
+class IntentResponse(BaseModel):
+    available: bool
+    intent: str | None
+    confidence: float
+    scores: dict[str, float]
+
+
+@app.post("/intent/classify", response_model=IntentResponse)
+def classify_intent_endpoint(
+    payload: IntentRequest,
+    _user: User = Depends(get_current_user),
+):
+    from intent_predict import classify_detail
+
+    detail = classify_detail(payload.text)
+    return IntentResponse(**detail)
 
 

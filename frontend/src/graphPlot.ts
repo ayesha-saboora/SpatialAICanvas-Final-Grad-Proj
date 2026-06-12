@@ -3,14 +3,18 @@ import { create, all } from 'mathjs'
 const math = create(all)
 
 export type GraphFunction = { expr: string; label: string; color: string }
+export type GraphPoint = { x: number; y: number; label?: string }
 export type GraphSpec = {
   type: 'graph'
   title: string
+  subtitle?: string
   functions: GraphFunction[]
   xMin: number
   xMax: number
   yMin: number
   yMax: number
+  axisLabels?: { x?: string; y?: string }
+  points?: GraphPoint[]
 }
 
 const STROKE: Record<string, string> = {
@@ -41,10 +45,30 @@ function evalY(node: { evaluate: (scope: Record<string, number>) => unknown }, x
   }
 }
 
+/** A "nice" tick step (1, 2, 2.5, 5, 10 x 10^n) for ~targetTicks divisions. */
+function niceStep(range: number, targetTicks: number): number {
+  const raw = range / Math.max(1, targetTicks)
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)))
+  const norm = raw / mag
+  let step
+  if (norm < 1.5) step = 1
+  else if (norm < 3) step = 2
+  else if (norm < 7) step = 5
+  else step = 10
+  return step * mag
+}
+
+function fmt(n: number): string {
+  if (Math.abs(n) < 1e-9) return '0'
+  const r = Math.round(n * 100) / 100
+  return Number.isInteger(r) ? String(r) : String(r)
+}
+
 export function renderGraphToDataUrl(spec: GraphSpec): { dataUrl: string; w: number; h: number } {
-  const W = 820
-  const H = 580
-  const PAD = { left: 56, right: 24, top: 36, bottom: 52 }
+  const W = 880
+  const H = 660
+  const hasSub = Boolean(spec.subtitle && spec.subtitle.trim())
+  const PAD = { left: 60, right: 28, top: hasSub ? 64 : 44, bottom: 56 }
   const plotW = W - PAD.left - PAD.right
   const plotH = H - PAD.top - PAD.bottom
 
@@ -58,67 +82,81 @@ export function renderGraphToDataUrl(spec: GraphSpec): { dataUrl: string; w: num
   const toX = (x: number) => PAD.left + ((x - xMin) / (xMax - xMin)) * plotW
   const toY = (y: number) => PAD.top + plotH - ((y - yMin) / (yMax - yMin)) * plotH
 
+  // Background + plot frame
   ctx.fillStyle = '#ffffff'
   ctx.fillRect(0, 0, W, H)
 
-  ctx.strokeStyle = '#e5e7eb'
+  const xStep = niceStep(xMax - xMin, 10)
+  const yStep = niceStep(yMax - yMin, 8)
+  const minorX = xStep / 5
+  const minorY = yStep / 5
+
+  const clampX = (px: number) => Math.max(PAD.left, Math.min(PAD.left + plotW, px))
+  const clampY = (py: number) => Math.max(PAD.top, Math.min(PAD.top + plotH, py))
+
+  // Minor grid
+  ctx.strokeStyle = '#f1f3f5'
   ctx.lineWidth = 1
-  const xTicks = 10
-  const yTicks = 8
-  for (let i = 0; i <= xTicks; i += 1) {
-    const x = xMin + (i / xTicks) * (xMax - xMin)
+  for (let x = Math.ceil(xMin / minorX) * minorX; x <= xMax; x += minorX) {
     const px = toX(x)
-    ctx.beginPath()
-    ctx.moveTo(px, PAD.top)
-    ctx.lineTo(px, PAD.top + plotH)
-    ctx.stroke()
+    ctx.beginPath(); ctx.moveTo(px, PAD.top); ctx.lineTo(px, PAD.top + plotH); ctx.stroke()
   }
-  for (let i = 0; i <= yTicks; i += 1) {
-    const y = yMin + (i / yTicks) * (yMax - yMin)
+  for (let y = Math.ceil(yMin / minorY) * minorY; y <= yMax; y += minorY) {
     const py = toY(y)
-    ctx.beginPath()
-    ctx.moveTo(PAD.left, py)
-    ctx.lineTo(PAD.left + plotW, py)
-    ctx.stroke()
+    ctx.beginPath(); ctx.moveTo(PAD.left, py); ctx.lineTo(PAD.left + plotW, py); ctx.stroke()
   }
 
-  ctx.strokeStyle = '#374151'
-  ctx.lineWidth = 1.5
+  // Major grid
+  ctx.strokeStyle = '#dde1e6'
+  ctx.lineWidth = 1
+  ctx.fillStyle = '#9aa0a6'
+  ctx.font = '11px system-ui, sans-serif'
+  for (let x = Math.ceil(xMin / xStep) * xStep; x <= xMax + 1e-9; x += xStep) {
+    const px = toX(x)
+    ctx.beginPath(); ctx.moveTo(px, PAD.top); ctx.lineTo(px, PAD.top + plotH); ctx.stroke()
+    if (Math.abs(x) > 1e-9) {
+      ctx.textAlign = 'center'
+      ctx.fillText(fmt(x), px, clampY(toY(0)) + 14)
+    }
+  }
+  for (let y = Math.ceil(yMin / yStep) * yStep; y <= yMax + 1e-9; y += yStep) {
+    const py = toY(y)
+    ctx.beginPath(); ctx.moveTo(PAD.left, py); ctx.lineTo(PAD.left + plotW, py); ctx.stroke()
+    if (Math.abs(y) > 1e-9) {
+      ctx.textAlign = 'right'
+      ctx.fillText(fmt(y), clampX(toX(0)) - 6, py + 4)
+    }
+  }
+
+  // Axes (bold, at origin)
+  ctx.strokeStyle = '#5f6368'
+  ctx.lineWidth = 1.8
   const xAxisY = toY(0)
   if (xAxisY >= PAD.top && xAxisY <= PAD.top + plotH) {
-    ctx.beginPath()
-    ctx.moveTo(PAD.left, xAxisY)
-    ctx.lineTo(PAD.left + plotW, xAxisY)
-    ctx.stroke()
+    ctx.beginPath(); ctx.moveTo(PAD.left, xAxisY); ctx.lineTo(PAD.left + plotW, xAxisY); ctx.stroke()
   }
   const yAxisX = toX(0)
   if (yAxisX >= PAD.left && yAxisX <= PAD.left + plotW) {
-    ctx.beginPath()
-    ctx.moveTo(yAxisX, PAD.top)
-    ctx.lineTo(yAxisX, PAD.top + plotH)
-    ctx.stroke()
+    ctx.beginPath(); ctx.moveTo(yAxisX, PAD.top); ctx.lineTo(yAxisX, PAD.top + plotH); ctx.stroke()
   }
 
-  ctx.fillStyle = '#6b7280'
-  ctx.font = '12px system-ui, sans-serif'
-  ctx.textAlign = 'center'
-  ctx.fillText(String(xMin), toX(xMin), H - 18)
-  ctx.fillText(String(xMax), toX(xMax), H - 18)
+  // Axis labels
+  ctx.fillStyle = '#3c4043'
+  ctx.font = 'italic 13px system-ui, sans-serif'
   ctx.textAlign = 'right'
-  ctx.fillText(String(yMax), PAD.left - 8, toY(yMax) + 4)
-  ctx.fillText(String(yMin), PAD.left - 8, toY(yMin) + 4)
+  ctx.fillText(spec.axisLabels?.x || 'x', PAD.left + plotW - 2, clampY(xAxisY) - 6)
+  ctx.textAlign = 'left'
+  ctx.fillText(spec.axisLabels?.y || 'y', clampX(yAxisX) + 6, PAD.top + 10)
 
-  const compiled = spec.functions.map((fn) => ({
-    fn,
-    node: compileExpr(fn.expr),
-  }))
-
-  const steps = Math.max(200, Math.floor(plotW * 1.5))
+  // Curves
+  const compiled = spec.functions.map((fn) => ({ fn, node: compileExpr(fn.expr) }))
+  const steps = Math.max(240, Math.floor(plotW * 1.5))
   for (const { fn, node } of compiled) {
     ctx.strokeStyle = STROKE[fn.color] ?? STROKE.blue
-    ctx.lineWidth = 2.2
+    ctx.lineWidth = 2.4
     ctx.beginPath()
     let started = false
+    let lastInside: { px: number; py: number } | null = null
     for (let i = 0; i <= steps; i += 1) {
       const x = xMin + (i / steps) * (xMax - xMin)
       const y = evalY(node, x)
@@ -128,25 +166,46 @@ export function renderGraphToDataUrl(spec: GraphSpec): { dataUrl: string; w: num
       }
       const px = toX(x)
       const py = toY(y)
-      if (!started) {
-        ctx.moveTo(px, py)
-        started = true
-      } else {
-        ctx.lineTo(px, py)
-      }
+      if (!started) { ctx.moveTo(px, py); started = true } else { ctx.lineTo(px, py) }
+      if (y >= yMin && y <= yMax) lastInside = { px, py }
     }
     ctx.stroke()
+
+    // Direct label near the curve's last visible point (preferred over legend)
+    if (lastInside) {
+      ctx.fillStyle = STROKE[fn.color] ?? STROKE.blue
+      ctx.font = '600 13px system-ui, sans-serif'
+      ctx.textAlign = 'right'
+      const lx = Math.min(lastInside.px, PAD.left + plotW - 4)
+      const ly = Math.max(PAD.top + 12, Math.min(PAD.top + plotH - 4, lastInside.py - 6))
+      ctx.fillText(fn.label, lx, ly)
+    }
   }
 
-  let legendY = PAD.top + 8
-  ctx.textAlign = 'left'
-  ctx.font = '13px system-ui, sans-serif'
-  for (const { fn } of compiled) {
-    ctx.fillStyle = STROKE[fn.color] ?? STROKE.blue
-    ctx.fillRect(PAD.left + plotW - 180, legendY, 14, 3)
+  // Important points
+  for (const pt of spec.points ?? []) {
+    if (pt.x < xMin || pt.x > xMax || pt.y < yMin || pt.y > yMax) continue
+    const px = toX(pt.x)
+    const py = toY(pt.y)
     ctx.fillStyle = '#111827'
-    ctx.fillText(fn.label, PAD.left + plotW - 160, legendY + 4)
-    legendY += 18
+    ctx.beginPath(); ctx.arc(px, py, 3.5, 0, Math.PI * 2); ctx.fill()
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.stroke()
+    ctx.fillStyle = '#3c4043'
+    ctx.font = '11px system-ui, sans-serif'
+    ctx.textAlign = 'left'
+    const label = pt.label || `(${fmt(pt.x)}, ${fmt(pt.y)})`
+    ctx.fillText(label, px + 6, py - 6)
+  }
+
+  // Title + subtitle
+  ctx.textAlign = 'center'
+  ctx.fillStyle = '#111827'
+  ctx.font = '700 17px system-ui, sans-serif'
+  ctx.fillText(spec.title || 'Graph', W / 2, 24)
+  if (hasSub) {
+    ctx.fillStyle = '#6b7280'
+    ctx.font = '13px system-ui, sans-serif'
+    ctx.fillText(spec.subtitle as string, W / 2, 44)
   }
 
   return { dataUrl: canvas.toDataURL('image/png'), w: W, h: H }

@@ -6,12 +6,13 @@ import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
 import 'katex/dist/katex.min.css'
 import { SproutLogo, SproutHero, SproutDecor, SproutSmall } from './Sprout'
-import { BambooStalk } from './Panda'
 import { collectSpatialContext, resolveSelectionIds, type StoredDocument } from './spatialContext'
 import { renderPdfPages } from './pdfRender'
 import { renderGraphToDataUrl, type GraphSpec } from './graphPlot'
 import { TablePicker } from './TablePicker'
 import { PlantTimer } from './PlantTimer'
+import { SignAccessibilityPanel, type SignAccessMode } from './SignAccessibilityPanel'
+import { clusterBounds, formatMathAnswer, recognizeDrawnMath, type MathSymbolResult } from './mathRecognize'
 import {
   CANVAS_BOARD_COLOR,
   diagramArrowColor,
@@ -19,6 +20,13 @@ import {
   diagramTitleColor,
   restoreCanvasContrastForLightBoard,
 } from './canvasTheme'
+import {
+  STUDY_CANVAS_COMPONENTS,
+  STUDY_CANVAS_OVERRIDES,
+  STUDY_CANVAS_SHAPE_UTILS,
+  STUDY_CANVAS_TOOLS,
+  setupStudyCanvasEditor,
+} from './tldrawConfig'
 
 type AuthMode = 'login' | 'signup'
 type UserInfo = { id: string; name: string; email: string }
@@ -27,9 +35,11 @@ type WsTheme = 'light' | 'dark'
 type DiagramNode = { id: string; label: string; row: number; col: number; shape: string; color: string }
 type DiagramEdge = { from: string; to: string; label: string }
 type GraphFunctionSpec = { expr: string; label: string; color: string }
+type GraphPointSpec = { x: number; y: number; label?: string }
 type DiagramData = {
   type?: 'flowchart' | 'graph' | 'labeled_diagram'
   title: string
+  subtitle?: string
   nodes?: DiagramNode[]
   edges?: DiagramEdge[]
   functions?: GraphFunctionSpec[]
@@ -37,6 +47,8 @@ type DiagramData = {
   xMax?: number
   yMin?: number
   yMax?: number
+  axisLabels?: { x?: string; y?: string }
+  points?: GraphPointSpec[]
 }
 type VisualType = 'flowchart' | 'graph' | 'labeled_diagram'
 type SubmitOptions = { generateVisual?: boolean; visualType?: VisualType }
@@ -284,13 +296,37 @@ const apiFetch = async (path: string, opts: RequestInit = {}) => {
   return fetch(`${API}${path}`, { ...opts, headers })
 }
 
-const FEATURES = [
-  { icon: '🎨', title: 'Infinite Canvas', desc: 'Draw, sketch, and annotate freely on a boundless whiteboard with zoom and pan.' },
-  { icon: '🤖', title: 'AI Copilot', desc: 'Ask questions by text or voice — get instant explanations and visual diagrams on your canvas.' },
-  { icon: '🎙️', title: 'Voice Control', desc: 'Speak naturally and the AI listens, transcribes, and responds in real-time.' },
-  { icon: '📄', title: 'Document Upload', desc: 'Drop PDFs and images directly onto your canvas to annotate and study.' },
-  { icon: '📊', title: 'Visual Diagrams', desc: 'AI generates step-by-step visual breakdowns drawn right on your workspace.' },
-  { icon: '📁', title: 'Organized Projects', desc: 'Group canvases by subject — Physics, Chemistry, Math — and pick up where you left off.' },
+function formatCanvasDate(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return 'Recently updated'
+  const now = new Date()
+  const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24))
+  if (diffDays <= 0) return 'Updated today'
+  if (diffDays === 1) return 'Updated yesterday'
+  if (diffDays < 7) return `Updated ${diffDays} days ago`
+  return `Updated ${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: now.getFullYear() !== d.getFullYear() ? 'numeric' : undefined })}`
+}
+
+const MAIN_FEATURES = [
+  { icon: '🎨', title: 'Infinite Canvas', desc: 'Zoom, pan, draw, and organize on a boundless whiteboard — your notes never run out of room.', tag: 'Core' },
+  { icon: '🤖', title: 'AI Copilot', desc: 'Ask STEM questions by text or voice and get step-by-step explanations tied to your canvas.', tag: 'AI' },
+  { icon: '🎙️', title: 'Voice Input', desc: 'Speak your question hands-free — transcribed and sent to the AI automatically.', tag: 'Access' },
+  { icon: '📄', title: 'Document Upload', desc: 'Drop PDFs, slides, and images onto the canvas and annotate them in one place.', tag: 'Core' },
+  { icon: '📊', title: 'STEM Graphs', desc: 'Flowcharts, labeled diagrams, and Desmos-style math graphs drawn live on your workspace.', tag: 'Visual' },
+  { icon: '🧠', title: 'Intent Classifier', desc: 'Our custom 49-class ML model routes every prompt to the right visual in milliseconds.', tag: 'ML' },
+]
+
+const SELL_ACCESS = [
+  { icon: '🤟', title: 'Sign Shortcuts', hook: 'Fingerspell F, G, A — control the canvas with your hands.' },
+  { icon: '💬', title: 'AAC Spell Mode', hook: 'Spell words via webcam. One tap for "I need help."' },
+  { icon: '🎙️', title: 'Voice & TTS', hook: 'Speak questions in, hear answers out — multi-modal by design.' },
+]
+
+const SELL_ML = [
+  { value: '49', label: 'STEM intent classes' },
+  { value: '98.8%', label: 'Routing accuracy' },
+  { value: 'A–Z', label: 'ASL letters trained' },
+  { value: '<50ms', label: 'Model response' },
 ]
 
 export default function App() {
@@ -301,7 +337,8 @@ export default function App() {
   const [password, setPassword] = useState('')
   const [message, setMessage] = useState('')
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
-  const [wsTheme, setWsTheme] = useState<WsTheme>('light')
+  const [wsTheme, setWsTheme] = useState<WsTheme>('dark')
+  const [dashSearch, setDashSearch] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
   const [visualOffer, setVisualOffer] = useState(false)
   const [aiError, setAiError] = useState('')
@@ -312,6 +349,10 @@ export default function App() {
   const [activeGroup, setActiveGroup] = useState<string | null>(null)
   const [isDraggingFile, setIsDraggingFile] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
+  const [intentInfo, setIntentInfo] = useState<{ intent: string; confidence: number } | null>(null)
+  const [signOpen, setSignOpen] = useState(false)
+  const [mathRecognizing, setMathRecognizing] = useState(false)
+  const [signMode, setSignMode] = useState<SignAccessMode>('shortcut')
   const [stylesOpen, setStylesOpen] = useState(false)
   const [newCanvasOpen, setNewCanvasOpen] = useState(false)
   const [newCanvasName, setNewCanvasName] = useState('')
@@ -326,6 +367,9 @@ export default function App() {
   const recognitionRef = useRef<SpeechRecognition | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const authSectionRef = useRef<HTMLDivElement | null>(null)
+  const featuresSectionRef = useRef<HTMLDivElement | null>(null)
+  const aslSectionRef = useRef<HTMLDivElement | null>(null)
+  const chatScrollRef = useRef<HTMLDivElement | null>(null)
   const pendingDiagramRef = useRef<{ diagram?: DiagramData; steps?: string[] } | null>(null)
   /** Keeps last canvas selection when user clicks away into chat. */
   const pinnedSelectionRef = useRef<string[]>([])
@@ -339,7 +383,11 @@ export default function App() {
     return Array.from(set).sort()
   }, [projects])
 
-  const filteredProjects = activeGroup ? projects.filter((p) => p.group === activeGroup) : projects
+  const filteredProjects = projects.filter((p) => {
+    if (activeGroup && p.group !== activeGroup) return false
+    if (dashSearch.trim() && !p.name.toLowerCase().includes(dashSearch.trim().toLowerCase())) return false
+    return true
+  })
   const selectedProject = projects.find((p) => p.id === selectedProjectId) ?? null
   const activeTheme = WS_THEMES[wsTheme]
   const isDarkUi = wsTheme === 'dark'
@@ -366,6 +414,13 @@ export default function App() {
 
   useEffect(() => { void loadProjects() }, [loadProjects])
 
+  // Keep the AI chat pinned to the latest message (incl. while streaming).
+  useEffect(() => {
+    const el = chatScrollRef.current
+    if (!el) return
+    el.scrollTop = el.scrollHeight
+  }, [chatHistory, aiLoading, visualOffer, chatOpen])
+
   useEffect(() => {
     if (!selectedProjectId || !user) { setChatHistory([]); return }
     void apiFetch(`/projects/${selectedProjectId}/chat`)
@@ -389,10 +444,17 @@ export default function App() {
   const scrollToAuth = () => {
     authSectionRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
+  const scrollToFeatures = () => {
+    featuresSectionRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+  const scrollToAsl = () => {
+    aslSectionRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
 
   const onMount = (editor: Editor) => {
     editorRef.current = editor
     setCanvasEditor(editor)
+    setupStudyCanvasEditor(editor)
     ;(editor as unknown as { updateInstanceState: (d: object) => void }).updateInstanceState({ isGridMode: true })
     editor.store.listen(() => {
       const ids = editor.getSelectedShapeIds().map(String)
@@ -449,11 +511,14 @@ export default function App() {
     const spec: GraphSpec = {
       type: 'graph',
       title: diagram.title,
+      subtitle: diagram.subtitle,
       functions: diagram.functions,
       xMin: diagram.xMin ?? -5,
       xMax: diagram.xMax ?? 5,
       yMin: diagram.yMin ?? -5,
       yMax: diagram.yMax ?? 5,
+      axisLabels: diagram.axisLabels,
+      points: diagram.points,
     }
     const { dataUrl, w, h } = renderGraphToDataUrl(spec)
     if (!dataUrl) return
@@ -697,6 +762,17 @@ export default function App() {
     if (!prompt) return
     setChatInput('')
     setVisualOffer(false)
+    setIntentInfo(null)
+
+    // Trained Prompt Intent Classifier — shows which action our model predicts.
+    void apiFetch('/intent/classify', { method: 'POST', body: JSON.stringify({ text: prompt }) })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.available && data.intent) {
+          setIntentInfo({ intent: data.intent, confidence: data.confidence })
+        }
+      })
+      .catch(() => {})
     const newHistory: ChatMessage[] = [...chatHistory, { role: 'user', content: prompt }]
     setChatHistory([...newHistory, { role: 'assistant', content: '' }])
     setAiLoading(true); setAiError('')
@@ -849,6 +925,112 @@ export default function App() {
       generateVisual: true,
       visualType,
     })
+  }
+
+  const placeTextOnCanvas = (editor: Editor, text: string, size: 'xl' | 'l' = 'xl') => {
+    const id = createShapeId()
+    const origin = getNextDiagramOrigin(editor)
+    editor.createShapes([
+      {
+        id,
+        type: 'text',
+        x: origin.x,
+        y: origin.y,
+        props: { richText: toRichText(text), size, color: 'black' },
+      },
+    ])
+    zoomToShapes(editor, [id])
+  }
+
+  const predictSign = async (image: Blob): Promise<{ letter: string; confidence: number }> => {
+    const form = new FormData()
+    form.append('file', image, 'sign.jpg')
+    const res = await apiFetch('/accessibility/predict-sign', { method: 'POST', body: form })
+    if (!res.ok) {
+      const err = await res.text().catch(() => '')
+      throw new Error(err || `Sign detection failed (${res.status})`)
+    }
+    return res.json()
+  }
+
+  const predictMathExpression = async (image: Blob): Promise<{ expression: string; symbols: MathSymbolResult[] }> => {
+    const form = new FormData()
+    form.append('file', image, 'expression.png')
+    const res = await apiFetch('/math/recognize-expression', { method: 'POST', body: form })
+    if (!res.ok) {
+      const err = await res.text().catch(() => '')
+      throw new Error(err || `Math recognition failed (${res.status})`)
+    }
+    return res.json() as Promise<{ expression: string; symbols: MathSymbolResult[] }>
+  }
+
+  const handleRecognizeMath = async () => {
+    const editor = editorRef.current
+    if (!editor || mathRecognizing) return
+    setMathRecognizing(true)
+    try {
+      const outcome = await recognizeDrawnMath(editor, predictMathExpression)
+      if (!outcome) return
+      const answer = formatMathAnswer(outcome.result)
+      if (!answer) return
+      const editor2 = editorRef.current
+      if (!editor2) return
+      const bounds = clusterBounds(editor, outcome.shapeIds)
+      const origin = bounds
+        ? { x: bounds.maxX + 24, y: bounds.minY }
+        : getNextDiagramOrigin(editor2)
+      const id = createShapeId()
+      editor2.createShapes([
+        {
+          id,
+          type: 'text',
+          x: origin.x,
+          y: origin.y,
+          props: { richText: toRichText(answer), size: 'xl', color: 'black' },
+        },
+      ])
+      zoomToShapes(editor2, [id])
+    } catch {
+      /* silent — nothing placed on canvas */
+    } finally {
+      setMathRecognizing(false)
+    }
+  }
+
+  const handleSignShortcut = (letter: string) => {
+    const editor = editorRef.current
+    const L = letter.toUpperCase()
+    switch (L) {
+      case 'F':
+        void submitPrompt('Draw a flowchart on my canvas for the current topic.', {
+          generateVisual: true,
+          visualType: 'flowchart',
+        })
+        break
+      case 'G':
+        void submitPrompt('Draw a graph on my canvas for the current topic.', {
+          generateVisual: true,
+          visualType: 'graph',
+        })
+        break
+      case 'A':
+        if (editor) placeTextOnCanvas(editor, 'Signed note')
+        break
+      case 'C':
+        if (editor) editor.deleteShapes(editor.getSelectedShapeIds())
+        break
+      case 'U':
+        editor?.undo()
+        break
+      default:
+        break
+    }
+  }
+
+  const handlePlaceAacText = (text: string) => {
+    const editor = editorRef.current
+    if (!editor || !text.trim()) return
+    placeTextOnCanvas(editor, text.trim(), 'xl')
   }
 
   const toggleVoiceMode = () => {
@@ -1010,129 +1192,128 @@ export default function App() {
             <span>StudyCanvas</span>
           </div>
           <div className="l-nav-links">
-            <button className="l-nav-link" onClick={scrollToAuth}>Features</button>
-            <button className="l-nav-link" onClick={scrollToAuth}>About</button>
+            <button className="l-nav-link" onClick={scrollToFeatures}>Features</button>
+            <button className="l-nav-link l-nav-link-accent" onClick={scrollToAsl}>Accessibility & ML</button>
+            <button className="l-nav-ghost" onClick={scrollToAuth}>Sign In</button>
             <button className="l-nav-cta" onClick={scrollToAuth}>Get Started</button>
           </div>
         </nav>
 
-        {/* --- HERO --- */}
-        <section className="l-hero">
-          <div className="l-hero-blob l-blob-1" />
-          <div className="l-hero-blob l-blob-2" />
-          <div className="l-hero-blob l-blob-3" />
-          <div className="l-dot-grid" />
-
-          <div className="l-hero-content">
-            <span className="l-badge">AI-Powered Learning</span>
-            <h1>Your AI study companion<br />that <span className="l-gradient-text">thinks visually.</span></h1>
-            <p className="l-hero-sub">
-              Stop switching between notes and AI. StudyCanvas puts an intelligent copilot
-              right on your infinite whiteboard — sketch, ask, and learn in one place.
+        {/* ===== PAGE 1: Hero + 6 features — all visible, no scroll ===== */}
+        <section className="l-page l-page-1" ref={featuresSectionRef}>
+          <div className="l-page-1-hero">
+            <span className="l-badge">AI Study Workspace</span>
+            <h1>Learn smarter. <span className="l-gradient-text">Think visually.</span></h1>
+            <p className="l-hero-sub l-hero-sub-compact">
+              Infinite canvas, AI copilot, voice &amp; STEM visuals — one workspace.
             </p>
-            <div className="l-hero-btns">
-              <button className="l-btn-primary" onClick={scrollToAuth}>Start Learning Free</button>
-              <button className="l-btn-outline" onClick={scrollToAuth}>See How It Works</button>
+            <div className="l-hero-btns l-hero-btns-center l-hero-btns-compact">
+              <button className="l-btn-primary l-btn-sm" onClick={scrollToAuth}>Start Free</button>
+              <button className="l-btn-outline l-btn-sm" onClick={scrollToAsl}>Why StudyCanvas</button>
             </div>
           </div>
-
-          <div className="l-hero-visual">
-            <div className="l-hero-card l-card-1">
-              <div className="l-card-dot green" />
-              <span>Explain backpropagation</span>
-            </div>
-            <div className="l-hero-card l-card-2">
-              <div className="l-card-dot pink" />
-              <span>AI draws diagrams on your canvas</span>
-            </div>
-            <div className="l-hero-card l-card-3">
-              <div className="l-card-dot green" />
-              <span>Voice: "What is entropy?"</span>
-            </div>
-            <SproutHero className="l-hero-sprout" />
-          </div>
-        </section>
-
-        {/* --- FEATURES --- */}
-        <section className="l-features">
-          <SproutDecor className="l-features-decor l-features-decor-1" />
-          <SproutDecor className="l-features-decor l-features-decor-2" />
-          <div className="l-features-header">
-            <span className="l-badge">Features</span>
-            <h2>Everything you need to study smarter</h2>
-            <p>A complete spatial learning toolkit — canvas, AI, voice, and documents in one workspace.</p>
-          </div>
-          <div className="l-features-grid">
-            {FEATURES.map((f) => (
-              <div key={f.title} className="l-feature-card">
-                <span className="l-feature-icon">{f.icon}</span>
-                <h3>{f.title}</h3>
+          <div className="l-feat-panel">
+            {MAIN_FEATURES.map((f) => (
+              <div key={f.title} className="l-feat-cell">
+                <div className="l-feat-cell-head">
+                  <span className="l-feat-cell-icon">{f.icon}</span>
+                  <strong>{f.title}</strong>
+                  <span className="l-feat-cell-tag">{f.tag}</span>
+                </div>
                 <p>{f.desc}</p>
               </div>
             ))}
           </div>
         </section>
 
-        {/* --- HOW IT WORKS --- */}
-        <section className="l-how">
-          <div className="l-how-header">
-            <span className="l-badge">How It Works</span>
-            <h2>Three steps to visual learning</h2>
-          </div>
-          <div className="l-how-steps">
-            <div className="l-step">
-              <div className="l-step-num">1</div>
-              <h3>Open your canvas</h3>
-              <p>Create a workspace for any subject. Draw, type, or upload documents.</p>
+        {/* ===== PAGE 2: Accessibility + ML — minimal sell ===== */}
+        <section className="l-page l-page-2" ref={aslSectionRef}>
+          <div className="l-page-2-sell">
+            <div className="l-page-2-head">
+              <span className="l-badge l-badge-accent">Accessibility & ML</span>
+              <h2>Built for every learner. <span className="l-gradient-text">Powered by our own models.</span></h2>
+              <p className="l-page-2-tagline">Deaf, hard-of-hearing, and motor-accessible — not an afterthought. Real ML, not just a chatbot wrapper.</p>
             </div>
-            <div className="l-step-arrow">→</div>
-            <div className="l-step">
-              <div className="l-step-num">2</div>
-              <h3>Ask the AI</h3>
-              <p>Type or speak your question. The AI understands context and generates explanations.</p>
-            </div>
-            <div className="l-step-arrow">→</div>
-            <div className="l-step">
-              <div className="l-step-num">3</div>
-              <h3>Learn visually</h3>
-              <p>AI draws step-by-step diagrams right on your canvas. Everything stays in one place.</p>
-            </div>
-          </div>
-          <SproutSmall className="l-how-sprout" />
-        </section>
-
-        {/* --- AUTH SECTION --- */}
-        <section className="l-auth" ref={authSectionRef}>
-          <div className="l-auth-left">
-            <h2>Ready to think<br /><span className="l-gradient-text">spatially?</span></h2>
-            <p>Join students who are already learning with AI on an infinite canvas. Free to start, no credit card.</p>
-            <div className="l-auth-trust">
-              <SproutSmall className="l-auth-sprout" />
-              <div className="l-auth-stats">
-                <span>Infinite Canvas</span>
-                <span>AI Copilot</span>
-                <span>100% Free</span>
+            <div className="l-page-2-grid">
+              <div className="l-sell-col">
+                <h3>Study your way</h3>
+                {SELL_ACCESS.map((s) => (
+                  <div key={s.title} className="l-sell-item">
+                    <span className="l-sell-icon">{s.icon}</span>
+                    <div>
+                      <strong>{s.title}</strong>
+                      <p>{s.hook}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="l-sell-col l-sell-col-ml">
+                <h3>We trained it</h3>
+                <p className="l-sell-ml-hook">Custom intent classifier + ASL recognizer. Our models decide <em>what</em> to draw — the LLM fills in the rest.</p>
+                <div className="l-sell-stats">
+                  {SELL_ML.map((s) => (
+                    <div key={s.label} className="l-sell-stat">
+                      <span className="l-sell-stat-value">{s.value}</span>
+                      <span className="l-sell-stat-label">{s.label}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
-          <div className="l-auth-right">
-            <form className="l-auth-card" onSubmit={(e) => void handleAuth(e)}>
-              <h3>{authMode === 'login' ? 'Welcome back' : 'Create your account'}</h3>
-              <p className="l-auth-sub">{authMode === 'login' ? 'Sign in to your workspace' : 'Start your learning journey'}</p>
-              {authMode === 'signup' && (
-                <input className="l-input" placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} />
-              )}
-              <input className="l-input" placeholder="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-              <input className="l-input" placeholder="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-              {message && <p className="l-auth-error">{message}</p>}
-              <button className="l-btn-primary l-auth-submit" type="submit">
-                {authMode === 'login' ? 'Sign In' : 'Create Account'}
-              </button>
-              <button className="l-switch" type="button"
-                onClick={() => { setAuthMode(authMode === 'login' ? 'signup' : 'login'); setMessage('') }}>
-                {authMode === 'login' ? "Don't have an account? Sign up" : 'Already registered? Sign in'}
-              </button>
-            </form>
+        </section>
+
+        {/* ===== PAGE 3: 3 steps ∥ Sign in ===== */}
+        <section className="l-page l-page-3" ref={authSectionRef}>
+          <div className="l-page-3-split">
+            <div className="l-page-3-steps">
+              <span className="l-badge">How It Works</span>
+              <h2>Three steps to visual learning</h2>
+              <div className="l-timeline">
+                <div className="l-timeline-item">
+                  <div className="l-step-num">1</div>
+                  <div>
+                    <h3>Open your canvas</h3>
+                    <p>Create a subject workspace — Physics, Organic Chemistry, Linear Algebra. Draw, type equations, or upload lecture PDFs.</p>
+                  </div>
+                </div>
+                <div className="l-timeline-item">
+                  <div className="l-step-num">2</div>
+                  <div>
+                    <h3>Ask the AI — text, voice, or sign</h3>
+                    <p>Type, speak, or fingerspell your question. Our trained intent model routes your prompt to the right visual type instantly.</p>
+                  </div>
+                </div>
+                <div className="l-timeline-item">
+                  <div className="l-step-num">3</div>
+                  <div>
+                    <h3>Learn visually on one surface</h3>
+                    <p>AI draws flowcharts, labeled diagrams, and math graphs on your canvas. Review and improve graphs with the STEM Visualization Assistant.</p>
+                  </div>
+                </div>
+              </div>
+              <SproutDecor className="l-page-3-art" />
+            </div>
+            <div className="l-page-3-auth">
+              <form className="l-auth-card" onSubmit={(e) => void handleAuth(e)}>
+                <SproutSmall className="l-auth-art-inline" />
+                <h3>{authMode === 'login' ? 'Welcome back' : 'Create your account'}</h3>
+                <p className="l-auth-sub">{authMode === 'login' ? 'Sign in to your workspace' : 'Start your learning journey — free, no credit card'}</p>
+                {authMode === 'signup' && (
+                  <input className="l-input" placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} />
+                )}
+                <input className="l-input" placeholder="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                <input className="l-input" placeholder="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+                {message && <p className="l-auth-error">{message}</p>}
+                <button className="l-btn-primary l-auth-submit" type="submit">
+                  {authMode === 'login' ? 'Sign In' : 'Create Account'}
+                </button>
+                <button className="l-switch" type="button"
+                  onClick={() => { setAuthMode(authMode === 'login' ? 'signup' : 'login'); setMessage('') }}>
+                  {authMode === 'login' ? "Don't have an account? Sign up" : 'Already registered? Sign in'}
+                </button>
+              </form>
+            </div>
           </div>
         </section>
 
@@ -1145,41 +1326,60 @@ export default function App() {
     )
   }
 
-  /* ====== DASHBOARD ====== */
+  /* ====== DASHBOARD — sidebar + card grid ====== */
   if (screen === 'workspace' && !selectedProject) {
     return (
       <div className="dash">
-        <nav className="dash-nav">
-          <div className="dash-nav-brand">
-            <SproutLogo className="dash-brand-logo" />
+        <aside className="dash-side">
+          <div className="dash-side-brand">
+            <SproutLogo className="dash-side-logo" />
             <span>StudyCanvas</span>
           </div>
-          <div className="dash-nav-right">
-            <span className="dash-user">Hi, {userName}</span>
-            <button className="l-btn-outline dash-logout" onClick={logOut}>Log Out</button>
-          </div>
-        </nav>
-
-        <div className="dash-body">
-          <div className="dash-welcome">
-            <div className="dash-welcome-text">
-              <h1>My Workspace</h1>
-              <p>Pick up where you left off, or start something new.</p>
+          <nav className="dash-side-nav">
+            <div className="dash-side-label">Subjects</div>
+            <button className={`dash-side-item ${!activeGroup ? 'dash-side-active' : ''}`} onClick={() => setActiveGroup(null)}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 2h5v5H2V2zm7 0h5v5H9V2zM2 9h5v5H2V9zm7 0h5v5H9V9z" stroke="currentColor" strokeWidth="1.3"/></svg>
+              All Canvases
+              <span className="dash-side-count">{projects.length}</span>
+            </button>
+            {groups.map((g) => (
+              <button key={g} className={`dash-side-item ${activeGroup === g ? 'dash-side-active' : ''}`} onClick={() => setActiveGroup(g)}>
+                <span className="dash-side-dot" />
+                {g}
+                <span className="dash-side-count">{projects.filter((p) => p.group === g).length}</span>
+              </button>
+            ))}
+          </nav>
+          <div className="dash-side-foot">
+            <div className="dash-side-user">
+              <span className="dash-side-avatar">{(userName || 'U').charAt(0).toUpperCase()}</span>
+              <span className="dash-side-name">{userName || 'Account'}</span>
             </div>
-            <SproutDecor className="dash-welcome-sprout" />
+            <button className="dash-side-logout" onClick={logOut} title="Log out">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 2H3v12h3M10 11l3-3-3-3M13 8H6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </button>
           </div>
+        </aside>
 
-          <div className="dash-toolbar">
-            <div className="dash-groups">
-              <button className={`dash-chip ${!activeGroup ? 'dash-chip-active' : ''}`} onClick={() => setActiveGroup(null)}>All</button>
-              {groups.map((g) => (
-                <button key={g} className={`dash-chip ${activeGroup === g ? 'dash-chip-active' : ''}`} onClick={() => setActiveGroup(g)}>{g}</button>
-              ))}
+        <main className="dash-main">
+          <div className="dash-top">
+            <div className="dash-top-text">
+              <h1>{activeGroup ?? 'My Canvases'}</h1>
+              <p>{userName ? `Welcome back, ${userName}` : 'Pick up where you left off'}</p>
             </div>
-            <button className="l-btn-primary" onClick={openNewCanvas}>+ New Canvas</button>
+            <div className="dash-top-actions">
+              <div className="dash-search">
+                <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.4"/><path d="M11 11l3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
+                <input placeholder="Search canvases..." value={dashSearch} onChange={(e) => setDashSearch(e.target.value)} />
+              </div>
+              <button className="dash-new-btn" onClick={openNewCanvas}>
+                <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
+                New Canvas
+              </button>
+            </div>
           </div>
 
-          <section className="dash-grid">
+          <div className="dash-grid">
             <button className="dash-new-card" onClick={openNewCanvas}>
               <span className="dash-plus">+</span>
               <span>New Canvas</span>
@@ -1189,12 +1389,12 @@ export default function App() {
               <button key={project.id} className="dash-card"
                 onClick={() => { setSelectedProjectId(project.id); setScreen('workspace') }}>
                 <div className="dash-card-preview">
-                  <BambooStalk className="dash-card-bamboo" height={100} />
+                  <span className="dash-card-mono">{project.name.charAt(0).toUpperCase()}</span>
                 </div>
                 <div className="dash-card-info">
                   <span className="dash-card-tag">{project.group}</span>
                   <h3>{project.name}</h3>
-                  <p>{project.updatedAt}</p>
+                  <p>{formatCanvasDate(project.updatedAt)}</p>
                 </div>
               </button>
             ))}
@@ -1202,12 +1402,12 @@ export default function App() {
             {filteredProjects.length === 0 && (
               <div className="dash-empty">
                 <SproutHero className="dash-empty-sprout" />
-                <p>{activeGroup ? `No canvases in "${activeGroup}".` : 'No canvases yet — create your first one!'}</p>
-                <button className="l-btn-primary" onClick={openNewCanvas}>Create Canvas</button>
+                <p>{dashSearch.trim() ? `No canvases match "${dashSearch}".` : activeGroup ? `No canvases in "${activeGroup}".` : 'No canvases yet — create your first one!'}</p>
+                <button className="dash-new-btn" onClick={openNewCanvas}>Create Canvas</button>
               </div>
             )}
-          </section>
-        </div>
+          </div>
+        </main>
 
         {newCanvasOpen && (
           <div className="nc-backdrop" onClick={closeNewCanvas}>
@@ -1242,125 +1442,137 @@ export default function App() {
   const isDark = isDarkUi
 
   return (
-    <div className={`ws-shell ${isDark ? 'ws-dark' : 'ws-light'}`}>
-      <aside className="ws-sidebar">
-        <div className="ws-sidebar-top">
-          <SproutLogo className="ws-brand-icon" />
-          <span className="ws-brand-text">StudyCanvas</span>
-        </div>
-        <nav className="ws-nav">
-          <button className="ws-nav-item" onClick={() => setSelectedProjectId(null)}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 2h5v5H2V2zm7 0h5v5H9V2zM2 9h5v5H2V9zm7 0h5v5H9V9z" stroke="currentColor" strokeWidth="1.3"/></svg>
-            My Workspace
+    <div className={`ws-shell ws-layout ${isDark ? 'ws-dark' : 'ws-light'} ${chatOpen ? 'ws-chat-open' : ''}`}>
+      {/* Full-width top toolbar */}
+      <header className="ws-toolbar">
+        <div className="ws-toolbar-left">
+          <button className="ws-back" onClick={() => setSelectedProjectId(null)} title="Back to canvases">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </button>
-          {projects.map((project) => (
-            <button key={project.id}
-              className={`ws-nav-item ${selectedProject?.id === project.id ? 'ws-nav-active' : ''}`}
-              onClick={() => { setSelectedProjectId(project.id); setScreen('workspace') }}>
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 2h10v12H3z" stroke="currentColor" strokeWidth="1.3"/><path d="M5 5h6M5 8h4" stroke="currentColor" strokeWidth="1.1"/></svg>
-              {project.name}
-            </button>
-          ))}
-        </nav>
-        <div className="ws-sidebar-bottom">
-          <SproutSmall className="ws-sidebar-sprout" />
+          <SproutLogo className="ws-topbar-logo" />
+          <span className="ws-proj-name">{selectedProject?.name ?? 'Canvas'}</span>
         </div>
+        <div className="ws-toolbar-right">
+          <button className={`ws-toolbar-ai ${chatOpen ? 'ws-toolbar-ai-active' : ''}`} onClick={() => setChatOpen(!chatOpen)} title="AI Copilot">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.82.5 3.53 1.36 5L2 22l5-1.36A9.96 9.96 0 0012 22c5.52 0 10-4.48 10-10S17.52 2 12 2z" stroke="currentColor" strokeWidth="1.6"/></svg>
+            <span>AI Copilot</span>
+          </button>
+          <button className="ws-toolbar-logout" onClick={logOut} title="Log out">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M6 2H3v12h3M10 11l3-3-3-3M13 8H6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          </button>
+        </div>
+      </header>
+
+      {/* Left vertical tool rail */}
+      <aside className="ws-rail">
+        <button className="ws-rail-btn" onClick={() => setWsTheme(isDark ? 'light' : 'dark')} title={isDark ? 'Light mode' : 'Dark mode'}>
+          {isDark ? (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 3a6 6 0 009 5.2A9 9 0 1112 3z" stroke="currentColor" strokeWidth="1.5" fill="rgba(255,200,50,0.15)"/></svg>
+          ) : (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.5"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+          )}
+        </button>
+        <div className="ws-rail-table"><TablePicker editor={canvasEditor} isDark={isDark} /></div>
+        <button className={`ws-rail-btn ${stylesOpen ? 'ws-rail-active' : ''}`} onClick={() => setStylesOpen(!stylesOpen)} title="Styles">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="4" cy="4" r="2" fill="currentColor"/><circle cx="12" cy="4" r="2" fill="currentColor"/><circle cx="4" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>
+        </button>
+        <button className="ws-rail-btn" onClick={() => fileInputRef.current?.click()} title="Upload">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v8m0 0l-3-3m3 3l3-3M3 13h10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+        </button>
+        <input ref={fileInputRef} type="file" accept="image/*,.pdf,.docx,application/pdf" multiple hidden
+          onChange={(e) => { if (e.target.files) void handleFileUpload(e.target.files) }} />
+        <button className={`ws-rail-btn ${isListening ? 'ws-rail-active' : ''}`} onClick={toggleVoiceMode} disabled={!voiceSupported} title="Voice">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1a2 2 0 012 2v4a2 2 0 01-4 0V3a2 2 0 012-2z" stroke="currentColor" strokeWidth="1.3"/><path d="M4 7a4 4 0 008 0M8 13v2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+        </button>
+        <button className={`ws-rail-btn ${signOpen ? 'ws-rail-active' : ''}`} onClick={() => setSignOpen(!signOpen)} title="Sign Access">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 3c0-1 2-2 4-2s4 1 4 2v2H4V3z" stroke="currentColor" strokeWidth="1.2"/><path d="M3 5h10v2c0 3-2 6-5 6S3 10 3 7V5z" stroke="currentColor" strokeWidth="1.2"/></svg>
+        </button>
+        <button
+          className={`ws-rail-btn ${mathRecognizing ? 'ws-rail-active' : ''}`}
+          onClick={() => void handleRecognizeMath()}
+          disabled={mathRecognizing}
+          title="Recognize handwritten math — draw one symbol per stroke, then click"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 13l3-8 2 4 2-3 3 7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/><path d="M3 13h10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
+        </button>
+        <div className="ws-rail-spacer" />
+        <PlantTimer isDark={isDark} projectId={selectedProjectId} />
       </aside>
 
-      <main className="ws-main">
-        <header className="ws-header">
-          <div className="ws-header-left">
-            <h2>{selectedProject?.name ?? 'Canvas'}</h2>
-          </div>
-          <div className="ws-header-right">
-            <button className="ws-btn ws-theme-toggle" onClick={() => setWsTheme(isDark ? 'light' : 'dark')}
-              title={isDark ? 'Switch to Light' : 'Switch to Dark'}>
-              {isDark ? (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 3a6 6 0 009 5.2A9 9 0 1112 3z" stroke="currentColor" strokeWidth="1.5" fill="rgba(255,200,50,0.15)"/></svg>
-              ) : (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.5"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-              )}
-            </button>
-            <TablePicker editor={canvasEditor} isDark={isDark} />
-            <button className={`ws-btn ${stylesOpen ? 'ws-btn-active' : ''}`} onClick={() => setStylesOpen(!stylesOpen)}>
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="4" cy="4" r="2" fill="currentColor"/><circle cx="12" cy="4" r="2" fill="currentColor"/><circle cx="4" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>
-              Styles
-            </button>
-            <button className="ws-btn" onClick={() => fileInputRef.current?.click()}>
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v8m0 0l-3-3m3 3l3-3M3 13h10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
-              Upload
-            </button>
-            <input ref={fileInputRef} type="file" accept="image/*,.pdf,.docx,application/pdf" multiple hidden
-              onChange={(e) => { if (e.target.files) void handleFileUpload(e.target.files) }} />
-            <button className={`ws-btn ${isListening ? 'ws-btn-active' : ''}`} onClick={toggleVoiceMode} disabled={!voiceSupported}>
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1a2 2 0 012 2v4a2 2 0 01-4 0V3a2 2 0 012-2z" stroke="currentColor" strokeWidth="1.3"/><path d="M4 7a4 4 0 008 0M8 13v2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
-              {isListening ? 'Listening...' : 'Voice'}
-            </button>
-            <button className="ws-btn ws-btn-logout" onClick={logOut}>Log Out</button>
-          </div>
-        </header>
+      <section className={`canvas-wrap ${isDraggingFile ? 'canvas-wrap-dropping' : ''} ${stylesOpen ? 'styles-open' : ''}`}
+        style={{ '--board-color': activeTheme.board } as CSSProperties}
+        onDrop={onCanvasDrop} onDragOver={onCanvasDragOver} onDragLeave={onCanvasDragLeave}>
+        {isDraggingFile && <div className="drop-overlay"><span>Drop file here</span></div>}
+        <Tldraw
+          persistenceKey={`board_${selectedProject?.id ?? 'default'}`}
+          onMount={onMount}
+          components={STUDY_CANVAS_COMPONENTS}
+          shapeUtils={STUDY_CANVAS_SHAPE_UTILS}
+          tools={STUDY_CANVAS_TOOLS}
+          overrides={STUDY_CANVAS_OVERRIDES}
+        />
 
-        <div className="ws-body">
-          <section className={`canvas-wrap ${isDraggingFile ? 'canvas-wrap-dropping' : ''} ${stylesOpen ? 'styles-open' : ''}`}
-            style={{ '--board-color': activeTheme.board } as CSSProperties}
-            onDrop={onCanvasDrop} onDragOver={onCanvasDragOver} onDragLeave={onCanvasDragLeave}>
-            {isDraggingFile && <div className="drop-overlay"><span>Drop file here</span></div>}
-            <Tldraw persistenceKey={`board_${selectedProject?.id ?? 'default'}`} onMount={onMount} />
-          </section>
-        </div>
-
-        {chatOpen && (
-          <div className="ai-popup">
-            <div className="ai-popup-header">
-              <span>AI Copilot</span>
-              <div className="ai-popup-actions">
-                <label className="ai-popup-auto">
-                  <input type="checkbox" checked={autoSendVoice} onChange={(e) => setAutoSendVoice(e.target.checked)} />
-                  Auto-send voice
-                </label>
-                <button className="ai-popup-close" onClick={() => setChatOpen(false)}>
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                </button>
-              </div>
-            </div>
-            <div className="ai-popup-messages">
-              {chatHistory.length === 0 && <p className="ai-popup-empty">Ask anything. The AI explains first — then you can choose a flowchart, labeled diagram, or math graph.</p>}
-              {chatHistory.map((entry, idx) => (
-                <div key={`${entry.role}_${idx}`} className={`ai-msg ai-msg-${entry.role}`}>
-                  {entry.role === 'assistant' ? <RichMessage text={entry.content} /> : entry.content}
-                </div>
-              ))}
-              {visualOffer && !aiLoading && (
-                <div className="ai-visual-offer">
-                  <span>Add a visual to your canvas?</span>
-                  <div className="ai-visual-offer-btns">
-                    <button type="button" onClick={() => requestVisual('flowchart')}>Flowchart</button>
-                    <button type="button" onClick={() => requestVisual('labeled_diagram')}>Labeled diagram</button>
-                    <button type="button" onClick={() => requestVisual('graph')}>Math graph</button>
-                  </div>
-                </div>
-              )}
-              {aiLoading && <div className="ai-msg ai-msg-assistant ai-msg-loading">Thinking...</div>}
-              {aiError && <p className="ai-popup-error">{aiError}</p>}
-            </div>
-            <div className="ai-popup-input">
-              <input placeholder="Ask anything..."
-                value={chatInput} onChange={(e) => setChatInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void submitPrompt() } }} />
-              <button className="ai-popup-send" onClick={() => void submitPrompt()} disabled={aiLoading}>
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8l12-6-4 6 4 6L2 8z" fill="currentColor"/></svg>
+        <aside className={`ai-panel ${chatOpen ? 'ai-panel-open' : ''}`}>
+          <div className="ai-popup-header">
+            <span>AI Copilot</span>
+            <div className="ai-popup-actions">
+              <label className="ai-popup-auto">
+                <input type="checkbox" checked={autoSendVoice} onChange={(e) => setAutoSendVoice(e.target.checked)} />
+                Auto-send voice
+              </label>
+              <button className="ai-popup-close" onClick={() => setChatOpen(false)}>
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
               </button>
             </div>
           </div>
-        )}
+          <div className="ai-popup-messages" ref={chatScrollRef}>
+            {chatHistory.length === 0 && <p className="ai-popup-empty">Ask anything. The AI explains first — then you can choose a flowchart, labeled diagram, or math graph.</p>}
+            {chatHistory.map((entry, idx) => (
+              <div key={`${entry.role}_${idx}`} className={`ai-msg ai-msg-${entry.role}`}>
+                {entry.role === 'assistant' ? <RichMessage text={entry.content} /> : entry.content}
+              </div>
+            ))}
+            {visualOffer && !aiLoading && (
+              <div className="ai-visual-offer">
+                <span>Add a visual to your canvas?</span>
+                <div className="ai-visual-offer-btns">
+                  <button type="button" onClick={() => requestVisual('flowchart')}>Flowchart</button>
+                  <button type="button" onClick={() => requestVisual('labeled_diagram')}>Labeled diagram</button>
+                  <button type="button" onClick={() => requestVisual('graph')}>Math graph</button>
+                </div>
+              </div>
+            )}
+            {aiLoading && <div className="ai-msg ai-msg-assistant ai-msg-loading">Thinking...</div>}
+            {aiError && <p className="ai-popup-error">{aiError}</p>}
+          </div>
+          {intentInfo && (
+            <div className="ai-intent-badge" title="Predicted by our trained Prompt Intent model (48-class taxonomy)">
+              <span className="ai-intent-dot" />
+              Intent: <strong>{intentInfo.intent.replace(/_/g, ' ').toLowerCase()}</strong>
+              <span className="ai-intent-conf">{Math.round(intentInfo.confidence * 100)}%</span>
+            </div>
+          )}
+          <div className="ai-popup-input">
+            <input placeholder="Ask anything..."
+              value={chatInput} onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void submitPrompt() } }} />
+            <button className="ai-popup-send" onClick={() => void submitPrompt()} disabled={aiLoading}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8l12-6-4 6 4 6L2 8z" fill="currentColor"/></svg>
+            </button>
+          </div>
+        </aside>
+      </section>
 
-        <PlantTimer isDark={isDark} projectId={selectedProjectId} />
-
-        <button className={`ai-fab ${chatOpen ? 'ai-fab-active' : ''}`} onClick={() => setChatOpen(!chatOpen)}
-          title="AI Copilot">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.82.5 3.53 1.36 5L2 22l5-1.36A9.96 9.96 0 0012 22c5.52 0 10-4.48 10-10S17.52 2 12 2z" stroke="currentColor" strokeWidth="1.5"/><path d="M8 10h.01M12 10h.01M16 10h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
-        </button>
-      </main>
+      <SignAccessibilityPanel
+        open={signOpen}
+        onClose={() => setSignOpen(false)}
+        isDark={isDark}
+        mode={signMode}
+        onModeChange={setSignMode}
+        predictSign={predictSign}
+        onShortcut={handleSignShortcut}
+        onPlaceAacText={handlePlaceAacText}
+      />
     </div>
   )
 }

@@ -1,0 +1,292 @@
+{
+  "classes": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "F",
+    "G",
+    "H",
+    "I",
+    "J",
+    "K",
+    "L",
+    "M",
+    "N",
+    "O",
+    "P",
+    "Q",
+    "R",
+    "S",
+    "T",
+    "U",
+    "V",
+    "W",
+    "X",
+    "Y",
+    "Z"
+  ],
+  "train_size": 2227,
+  "val_size": 144,
+  "test_size": 72,
+  "best_val_accuracy": 0.8888888888888888,
+  "eval_accuracy": 0.1111111111111111,
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 1.3941161999078304,
+      "train_acc": 0.6452626852267624,
+      "val_loss": 0.678782045841217,
+      "val_acc": 0.7916666666666666
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.20375763605167688,
+      "train_acc": 0.9438706780422093,
+      "val_loss": 0.5928976072205437,
+      "val_acc": 0.7916666666666666
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.11018858261851382,
+      "train_acc": 0.9708127525819488,
+      "val_loss": 0.54117884238561,
+      "val_acc": 0.8472222222222222
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.08909862363049413,
+      "train_acc": 0.9735069600359227,
+      "val_loss": 0.5257799476385117,
+      "val_acc": 0.8680555555555556
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.09006223787955495,
+      "train_acc": 0.9726088908845981,
+      "val_loss": 0.5072073704666562,
+      "val_acc": 0.8333333333333334
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.07786760691989951,
+      "train_acc": 0.9726088908845981,
+      "val_loss": 0.586080272992452,
+      "val_acc": 0.8402777777777778
+    },
+    {
+      "epoch": 7,
+      "train_loss": 0.08656931517634843,
+      "train_acc": 0.9779973057925461,
+      "val_loss": 0.4111177325248718,
+      "val_acc": 0.8888888888888888
+    },
+    {
+      "epoch": 8,
+      "train_loss": 0.06790163704634489,
+      "train_acc": 0.9847328244274809,
+      "val_loss": 0.4615367617872026,
+      "val_acc": 0.8402777777777778
+    },
+    {
+      "epoch": 9,
+      "train_loss": 0.03796859608221252,
+      "train_acc": 0.9896722047597665,
+      "val_loss": 0.5116695033179389,
+      "val_acc": 0.8402777777777778
+    },
+    {
+      "epoch": 10,
+      "train_loss": 0.03305390684940272,
+      "train_acc": 0.9919173776380781,
+      "val_loss": 0.39362828102376723,
+      "val_acc": 0.8819444444444444
+    },
+    {
+      "epoch": 11,
+      "train_loss": 0.02196941039302074,
+      "train_acc": 0.9937135159407274,
+      "val_loss": 0.4295661283863915,
+      "val_acc": 0.8819444444444444
+    },
+    {
+      "epoch": 12,
+      "train_loss": 0.05065759787897211,
+      "train_acc": 0.9860799281544679,
+      "val_loss": 0.4958937443378899,
+      "val_acc": 0.8611111111111112
+    }
+  ],
+  "classification_report": {
+    "A": {
+      "precision": 0.3333333333333333,
+      "recall": 1.0,
+      "f1-score": 0.5,
+      "support": 1.0
+    },
+    "B": {
+      "precision": 0.75,
+      "recall": 1.0,
+      "f1-score": 0.8571428571428571,
+      "support": 3.0
+    },
+    "C": {
+      "precision": 1.0,
+      "recall": 0.75,
+      "f1-score": 0.8571428571428571,
+      "support": 4.0
+    },
+    "D": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 1.0
+    },
+    "E": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 2.0
+    },
+    "F": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 5.0
+    },
+    "G": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 3.0
+    },
+    "H": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 2.0
+    },
+    "I": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 4.0
+    },
+    "J": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 4.0
+    },
+    "K": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 3.0
+    },
+    "L": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 3.0
+    },
+    "M": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 3.0
+    },
+    "N": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 1.0
+    },
+    "O": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 2.0
+    },
+    "P": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 2.0
+    },
+    "Q": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 3.0
+    },
+    "R": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 5.0
+    },
+    "S": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 2.0
+    },
+    "T": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 4.0
+    },
+    "U": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 5.0
+    },
+    "V": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 4.0
+    },
+    "W": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 2.0
+    },
+    "X": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 4.0
+    },
+    "Y": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 0.0
+    },
+    "Z": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 0.0
+    },
+    "accuracy": 0.1111111111111111,
+    "macro avg": {
+      "precision": 0.11858974358974358,
+      "recall": 0.14423076923076922,
+      "f1-score": 0.12362637362637363,
+      "support": 72.0
+    },
+    "weighted avg": {
+      "precision": 0.10532407407407408,
+      "recall": 0.1111111111111111,
+      "f1-score": 0.10416666666666667,
+      "support": 72.0
+    }
+  }
+}

@@ -18,29 +18,29 @@ function formatTime(totalSeconds: number): string {
   return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
 }
 
-function PlantIcon({ running, progress }: { running: boolean; progress: number }) {
-  const grow = 0.85 + Math.min(progress, 1) * 0.2
+function FocusRingIcon({ running, progress }: { running: boolean; progress: number }) {
+  const r = 14
+  const circ = 2 * Math.PI * r
+  const dash = circ * Math.min(Math.max(progress, 0), 1)
   return (
-    <svg className={`plant-timer-icon ${running ? 'plant-timer-icon-running' : ''}`} viewBox="0 0 48 48" fill="none">
-      <ellipse cx="24" cy="42" rx="14" ry="4" fill="#16a34a" opacity="0.15" />
-      <path d="M18 42V28c0-2 2-4 6-4s6 2 6 4v14" fill="#b45309" opacity="0.85" />
-      <path d="M16 42h16v2H16z" fill="#92400e" rx="1" />
-      <g style={{ transform: `scale(${grow})`, transformOrigin: '24px 28px' }}>
-        <path d="M24 28V14" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" />
-        <path
-          d="M24 18C24 10 32 5 40 5C40 13 32 18 24 18Z"
-          fill="#22c55e"
-          opacity="0.9"
-          className={running ? 'plant-leaf-sway' : ''}
-        />
-        <path
-          d="M24 22C24 16 16 12 8 12C8 18 16 22 24 22Z"
-          fill="#4ade80"
-          opacity="0.75"
-          className={running ? 'plant-leaf-sway plant-leaf-sway-delay' : ''}
-        />
-        <circle cx="24" cy="10" r="2.5" fill="#fbbf24" opacity={running ? 0.9 : 0.5} />
-      </g>
+    <svg className={`focus-timer-icon ${running ? 'focus-timer-icon-running' : ''}`} viewBox="0 0 48 48" fill="none">
+      <defs>
+        <linearGradient id="focus-ring" x1="0" y1="0" x2="48" y2="48">
+          <stop offset="0%" stopColor="#a855f7" />
+          <stop offset="50%" stopColor="#fb5b3c" />
+          <stop offset="100%" stopColor="#fbbf24" />
+        </linearGradient>
+      </defs>
+      <circle cx="24" cy="24" r={r} stroke="rgba(255,255,255,0.12)" strokeWidth="3" />
+      <circle
+        cx="24" cy="24" r={r}
+        stroke="url(#focus-ring)" strokeWidth="3" strokeLinecap="round"
+        strokeDasharray={`${dash} ${circ}`}
+        transform="rotate(-90 24 24)"
+      />
+      <text x="24" y="28" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="700" fontFamily="Inter, sans-serif">
+        {running ? '▶' : '⏱'}
+      </text>
     </svg>
   )
 }
@@ -129,34 +129,34 @@ export function PlantTimer({ isDark, projectId }: Props) {
   }
 
   return (
-    <div className={`plant-timer ${isDark ? 'plant-timer-dark' : ''}`}>
+    <div className={`focus-timer ${isDark ? 'focus-timer-dark' : ''}`}>
       <button
         type="button"
-        className={`plant-timer-fab ${running ? 'plant-timer-fab-active' : ''} ${open ? 'plant-timer-fab-open' : ''}`}
+        className={`focus-timer-fab ${running ? 'focus-timer-fab-active' : ''} ${open ? 'focus-timer-fab-open' : ''}`}
         onClick={() => setOpen(!open)}
-        title="Study timer"
-        aria-label="Study timer"
+        title="Focus timer"
+        aria-label="Focus timer"
       >
-        <PlantIcon running={running} progress={progress} />
-        {running && <span className="plant-timer-badge">{display}</span>}
+        <FocusRingIcon running={running} progress={progress} />
+        {running && <span className="focus-timer-badge">{display}</span>}
       </button>
 
       {open && (
-        <div className="plant-timer-panel">
-          <div className="plant-timer-panel-head">
-            <PlantIcon running={running} progress={progress} />
+        <div className="focus-timer-panel">
+          <div className="focus-timer-panel-head">
+            <FocusRingIcon running={running} progress={progress} />
             <div>
-              <strong>Study Timer</strong>
-              <span className="plant-timer-sub">
-                {mode === 'stopwatch' ? 'Tracking session' : 'Countdown'}
+              <strong>Focus Session</strong>
+              <span className="focus-timer-sub">
+                {mode === 'stopwatch' ? 'Tracking study time' : 'Pomodoro countdown'}
               </span>
             </div>
           </div>
 
-          <p className="plant-timer-display">{display}</p>
+          <p className="focus-timer-display">{display}</p>
 
           {mode === 'countdown' && !running && (
-            <label className="plant-timer-mins">
+            <label className="focus-timer-mins">
               Minutes
               <input
                 type="number"
@@ -172,7 +172,7 @@ export function PlantTimer({ isDark, projectId }: Props) {
             </label>
           )}
 
-          <div className="plant-timer-modes">
+          <div className="focus-timer-modes">
             <button
               type="button"
               className={mode === 'stopwatch' ? 'active' : ''}
@@ -189,23 +189,23 @@ export function PlantTimer({ isDark, projectId }: Props) {
             </button>
           </div>
 
-          <div className="plant-timer-actions">
+          <div className="focus-timer-actions">
             {!running ? (
-              <button type="button" className="plant-timer-start" onClick={start}>
+              <button type="button" className="focus-timer-start" onClick={start}>
                 Start
               </button>
             ) : (
-              <button type="button" className="plant-timer-pause" onClick={() => setRunning(false)}>
+              <button type="button" className="focus-timer-pause" onClick={() => setRunning(false)}>
                 Pause
               </button>
             )}
-            <button type="button" className="plant-timer-reset" onClick={reset}>
+            <button type="button" className="focus-timer-reset" onClick={reset}>
               Reset
             </button>
           </div>
 
           {mode === 'stopwatch' && (
-            <p className="plant-timer-total">Total studied: {formatTime(totalStudied)}</p>
+            <p className="focus-timer-total">Total studied: {formatTime(totalStudied)}</p>
           )}
         </div>
       )}

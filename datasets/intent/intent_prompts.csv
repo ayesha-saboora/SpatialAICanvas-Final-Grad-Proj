@@ -1,0 +1,1630 @@
+text,label
+help me interpret these accuracy metrics,RESULT_INTERPRETATION
+test my understanding of MPI,CREATE_QUIZ
+where is SLAM used in practice,REAL_WORLD_APPLICATION
+what is the space complexity of this algorithm,FIND_COMPLEXITY
+explain the limitations of this thesis chapter,CRITIQUE_METHOD
+summarize the literature on federated learning,LITERATURE_REVIEW
+what is the antiderivative of sin^2(x),INTEGRATE_FUNCTION
+SN1 and SN2 reactions: which is better,COMPARE_METHODS
+what's the time complexity of this algorithm,FIND_COMPLEXITY
+generate operating systems interview questions,CREATE_QUIZ
+what is the derivative of sqrt(x),DIFFERENTIATE_FUNCTION
+how is dropout used in real life,REAL_WORLD_APPLICATION
+implement Arduino code to blink an LED,GENERATE_CODE
+create flashcards for operating systems,CREATE_FLASHCARDS
+what are the weaknesses of this conference paper,CRITIQUE_METHOD
+condense cryptography into key points,SUMMARIZE_NOTES
+write Dijkstra's algorithm in Java,GENERATE_CODE
+give practical applications of entropy,REAL_WORLD_APPLICATION
+generate quantum-resistant alternatives for distributed systems,RESEARCH_IDEA
+fill in the rest of this loop,COMPLETE_CODE
+review this graph for colors,VISUALIZATION_IMPROVEMENT
+analyze the time complexity of this Python recursion code,FIND_COMPLEXITY
+interpret these clustering results,RESULT_INTERPRETATION
+design a system for an elevator control system,SYSTEM_DESIGN
+explain the limitations of this research paper,CRITIQUE_METHOD
+debug this BFS implementation,DEBUG_CODE
+identify research gaps in cryptography,RESEARCH_IDEA
+design an efficient approach for scheduling tasks,ALGORITHM_DESIGN
+fill in the rest of this dynamic programming solution,COMPLETE_CODE
+prove Bayes theorem,PROVE_THEOREM
+generate Dijkstra's algorithm in Java,GENERATE_CODE
+analyze the time complexity of merge sort,FIND_COMPLEXITY
+derive the kinematic equations,DERIVE_EQUATION
+verify the units in this expression,UNIT_ANALYSIS
+show a proof for the fundamental theorem of calculus,PROVE_THEOREM
+Generate CUDA interview questions.,CREATE_QUIZ
+turn computer networks into flashcards,CREATE_FLASHCARDS
+interpret the results of these YOLO detection results,RESULT_INTERPRETATION
+calculate the electric field at point P,SOLVE_NUMERICAL
+check my solution: x = 4,CHECK_MATH_SOLUTION
+Check the units of this formula.,UNIT_ANALYSIS
+plot x^3 - 3x,GRAPH_FUNCTION
+integrate 1/(x^2+1),INTEGRATE_FUNCTION
+suggest a novel research direction in computer vision,RESEARCH_IDEA
+generate exam-level challenges for database systems,GENERATE_PRACTICE_PROBLEMS
+visualize the uncertainty principle intuitively,EXPLAIN_INTUITIVELY
+optimize this SQL query for this sorting function,OPTIMIZE_CODE
+generate harder versions of these operating systems problems,GENERATE_PRACTICE_PROBLEMS
+show the parts of a plant cell,DRAW_LABELED_DIAGRAM
+complete the missing function in this loop,COMPLETE_CODE
+verify whether water boils at 90C at sea level,FACT_CHECK
+where is regularization used in practice,REAL_WORLD_APPLICATION
+give practical applications of garbage collection,REAL_WORLD_APPLICATION
+make practice problems about database systems,GENERATE_PRACTICE_PROBLEMS
+optimize this Python recursion code,OPTIMIZE_CODE
+give me a summary of compiler design,SUMMARIZE_NOTES
+reduce 3x + 2x - x to simplest form,SIMPLIFY_EXPRESSION
+explain this sorting function,EXPLAIN_CODE
+give me a summary of MPI,SUMMARIZE_NOTES
+check my proof of my argument,VERIFY_REASONING
+compute d/dx of y = x^2,DIFFERENTIATE_FUNCTION
+is it true that the speed of light is constant,FACT_CHECK
+explain angular momentum using an analogy,ANALOGY_GENERATION
+verify the units in the drag equation,UNIT_ANALYSIS
+architect a distributed system,SYSTEM_DESIGN
+reduce (x^2 - 1)/(x - 1) to simplest form,SIMPLIFY_EXPRESSION
+compute the equivalent resistance of this RLC network,CIRCUIT_ANALYSIS
+sketch the human eye and label its parts,DRAW_LABELED_DIAGRAM
+what's the difference between SN1 and SN2 reactions,COMPARE_METHODS
+generate viva questions for operating systems,CREATE_QUIZ
+explain the uncertainty principle using an analogy,ANALOGY_GENERATION
+are the units consistent in v = u + at,UNIT_ANALYSIS
+generate practice questions on compiler design,GENERATE_PRACTICE_PROBLEMS
+derive the equation for the kinematic equations,DERIVE_EQUATION
+"The cubic should be y=x^3, not y=x^3-3x. Fix this graph.",VISUALIZATION_IMPROVEMENT
+write a literature review on my thesis topic,LITERATURE_REVIEW
+help me build intuition for electromagnetic induction,EXPLAIN_INTUITIVELY
+work through sin^2(x) step by step,SOLVE_STEP_BY_STEP
+help me interpret these clustering results,RESULT_INTERPRETATION
+spot the flaw in my proof attempt,FIND_ERROR
+find the mistake in my proof attempt,FIND_ERROR
+walk me through this graph traversal,EXPLAIN_CODE
+complete the missing function in this sorting function,COMPLETE_CODE
+what does negative temperature represent physically,EXPLAIN_PHYSICAL_MEANING
+what does this Python recursion code do,EXPLAIN_CODE
+analyze the time complexity of this merge sort,FIND_COMPLEXITY
+factor the expression x^2 - 4,FACTOR_EXPRESSION
+explore this dataset,DATA_ANALYSIS
+draw the graph of ln(x),GRAPH_FUNCTION
+give me the intuition behind vector spaces,EXPLAIN_INTUITIVELY
+do an exploratory analysis of this sales data,DATA_ANALYSIS
+what are the weaknesses of my experiment,CRITIQUE_METHOD
+improve the axes of this graph,VISUALIZATION_IMPROVEMENT
+find the mistake in my algebra,FIND_ERROR
+what's the time complexity of my binary search function,FIND_COMPLEXITY
+derive the formula for the quadratic formula,DERIVE_FORMULA
+summarize the literature on my thesis topic,LITERATURE_REVIEW
+explain Taylor series intuitively,EXPLAIN_INTUITIVELY
+bagging and boosting: which is better,COMPARE_METHODS
+contrast CNNs and Transformers,COMPARE_METHODS
+complete the implementation of this dynamic programming solution,COMPLETE_CODE
+design a distributed system,SYSTEM_DESIGN
+compare supervised and unsupervised learning,COMPARE_METHODS
+show e^x on a coordinate plane,GRAPH_FUNCTION
+Explain attention mechanisms.,EXPLAIN_CONCEPT
+find the integral of 1/(x^2+1),INTEGRATE_FUNCTION
+what is wave-particle duality,EXPLAIN_CONCEPT
+give me the intuition behind asymptotic notation,EXPLAIN_INTUITIVELY
+tell me about garbage collection,EXPLAIN_CONCEPT
+generate ROS code for robot navigation,GENERATE_CODE
+is my the homework answer correct,CHECK_ANSWER
+Derive the quadratic formula.,DERIVE_FORMULA
+give me a summary of chapter 5,SUMMARIZE_NOTES
+Generate LALR parsing questions.,CREATE_QUIZ
+create a quiz on operating systems,CREATE_QUIZ
+find the error in my derivation,FIND_ERROR
+what is the derivative of x^2 e^-x,DIFFERENTIATE_FUNCTION
+sketch a four-stroke engine and label its parts,DRAW_LABELED_DIAGRAM
+generate exam-level challenges for MPI,GENERATE_PRACTICE_PROBLEMS
+prepare me for my CUDA exam,EXAM_PREPARATION
+give me exam tips for cryptography,EXAM_PREPARATION
+explain garbage collection in the simplest terms,ELI5_EXPLANATION
+show the parts of a neuron,DRAW_LABELED_DIAGRAM
+what is the physical interpretation of the divergence,EXPLAIN_PHYSICAL_MEANING
+simplify the expression sin^2(x),SIMPLIFY_EXPRESSION
+simplify 3x^2 + 2x - 5,SIMPLIFY_EXPRESSION
+give me a summary of this research paper,SUMMARIZE_NOTES
+check my this problem calculations,CHECK_ANSWER
+make my binary search function faster,OPTIMIZE_CODE
+complete the implementation of my linked list code,COMPLETE_CODE
+integrate ln(x),INTEGRATE_FUNCTION
+find the current in this RC circuit,CIRCUIT_ANALYSIS
+find the derivative of cos(x)/x and explain every step,SOLVE_STEP_BY_STEP
+analyze this dataset,DATA_ANALYSIS
+what do these accuracy metrics tell me,RESULT_INTERPRETATION
+what are the key ideas of wave-particle duality,EXPLAIN_CONCEPT
+what do these p-values tell me,RESULT_INTERPRETATION
+explain post-quantum cryptography as if I knew nothing about it,ELI5_EXPLANATION
+check my proof of the parser,VERIFY_REASONING
+what's a good metaphor for complex numbers,ANALOGY_GENERATION
+give me exam tips for compiler design,EXAM_PREPARATION
+find the complexity of this dynamic programming solution,FIND_COMPLEXITY
+prove that sqrt(2) is irrational,PROVE_THEOREM
+find the impulse response,SIGNAL_ANALYSIS
+find the bug causing segmentation faults in this merge sort,DEBUG_CODE
+what are the key ideas of vector spaces,EXPLAIN_CONCEPT
+make a revision sheet for computer networks,SUMMARIZE_NOTES
+find the error in my proof attempt,FIND_ERROR
+evaluate the experimental design of this journal article,CRITIQUE_METHOD
+Find the derivative of x^2 sin(x) and explain every step.,SOLVE_STEP_BY_STEP
+prove that the fundamental theorem of calculus,PROVE_THEOREM
+solve 2x^2 - 8 and explain each step,SOLVE_STEP_BY_STEP
+write a literature review on graph neural networks,LITERATURE_REVIEW
+why did my model overfitting,MODEL_EXPLANATION
+give me exam tips for digital logic,EXAM_PREPARATION
+generate flashcards for CUDA,CREATE_FLASHCARDS
+draw a labeled diagram of a neuron,DRAW_LABELED_DIAGRAM
+give me practice problems for CUDA,GENERATE_PRACTICE_PROBLEMS
+what is the physical interpretation of entropy,EXPLAIN_PHYSICAL_MEANING
+analyze the time complexity of my binary search function,FIND_COMPLEXITY
+help me interpret this p-value,RESULT_INTERPRETATION
+explain the uncertainty principle intuitively,EXPLAIN_INTUITIVELY
+critique the methodology of this study,CRITIQUE_METHOD
+what do these YOLO detection results tell me,RESULT_INTERPRETATION
+Critique this visualization and redraw it.,VISUALIZATION_IMPROVEMENT
+make flashcards on cryptography,CREATE_FLASHCARDS
+write code for a logistic regression in Python,GENERATE_CODE
+ELI5 the product rule,ELI5_EXPLANATION
+are the units consistent in this expression,UNIT_ANALYSIS
+Explain Kalman filters.,EXPLAIN_CONCEPT
+"This graph is hard to read on a small screen, fix it.",VISUALIZATION_IMPROVEMENT
+fix the bug in this BFS implementation,DEBUG_CODE
+compute the integral of 1/(x^2+1),INTEGRATE_FUNCTION
+"I solved it and got x = 0 and x = 3, is that right",CHECK_MATH_SOLUTION
+generate viva questions for OpenCL,CREATE_QUIZ
+what is the Big-O of my linked list code,FIND_COMPLEXITY
+fill in the rest of this sorting function,COMPLETE_CODE
+help me build intuition for the bias-variance tradeoff,EXPLAIN_INTUITIVELY
+spot the flaw in my limit computation,FIND_ERROR
+find the derivative of sin(x)/x,DIFFERENTIATE_FUNCTION
+prove that the mean value theorem,PROVE_THEOREM
+analog and digital signals: which is better,COMPARE_METHODS
+can this merge sort be optimized,OPTIMIZE_CODE
+derive the lens equation,DERIVE_EQUATION
+are the units consistent in F = ma,UNIT_ANALYSIS
+compute d/dx of ln(x),DIFFERENTIATE_FUNCTION
+what is the Big-O of this dynamic programming solution,FIND_COMPLEXITY
+explain attention mechanisms as if I knew nothing about it,ELI5_EXPLANATION
+draw and label the respiratory system,DRAW_LABELED_DIAGRAM
+generate viva questions for computer networks,CREATE_QUIZ
+sketch tan(x),GRAPH_FUNCTION
+ELI5 special relativity,ELI5_EXPLANATION
+write code for Arduino code to blink an LED,GENERATE_CODE
+create memory tricks for database systems,EXAM_PREPARATION
+Check my circuit calculations.,CHECK_ANSWER
+graph the curve sin(x)/x,GRAPH_FUNCTION
+improve the readability of this graph,VISUALIZATION_IMPROVEMENT
+find the complexity of my linked list code,FIND_COMPLEXITY
+give me exam tips for database systems,EXAM_PREPARATION
+why is my model overfitting,MODEL_EXPLANATION
+find the derivative of (x^2 - 4)/(x - 2) and explain every step,SOLVE_STEP_BY_STEP
+is my reasoning correct for this theorem proof,VERIFY_REASONING
+find the current in this RLC network,CIRCUIT_ANALYSIS
+show the derivation of the compound interest formula,DERIVE_FORMULA
+interpret this regression output,RESULT_INTERPRETATION
+make flashcards on compiler design,CREATE_FLASHCARDS
+what's the difference between analog and digital signals,COMPARE_METHODS
+debug my binary search function,DEBUG_CODE
+visualize eigenvalues intuitively,EXPLAIN_INTUITIVELY
+complete the missing function in this merge sort,COMPLETE_CODE
+interpret this p-value,RESULT_INTERPRETATION
+calculate the current through a 10 ohm resistor,SOLVE_NUMERICAL
+sketch the benzene ring and label its parts,DRAW_LABELED_DIAGRAM
+explain the physical meaning of imaginary time,EXPLAIN_PHYSICAL_MEANING
+give me the intuition behind virtual memory,EXPLAIN_INTUITIVELY
+explore this time series,DATA_ANALYSIS
+label the structure of a four-stroke engine,DRAW_LABELED_DIAGRAM
+Generate Python code for logistic regression.,GENERATE_CODE
+where does the distance formula come from,DERIVE_FORMULA
+draw the graph of tan(x),GRAPH_FUNCTION
+explain the limitations of my experiment,CRITIQUE_METHOD
+show me how to solve 3x^2 + 2x - 5 with all steps,SOLVE_STEP_BY_STEP
+verify my answer for the homework,CHECK_ANSWER
+whats wrong with this graph,VISUALIZATION_IMPROVEMENT
+check my answer for chemistry,CHECK_ANSWER
+solve cos(x)/x and explain each step,SOLVE_STEP_BY_STEP
+explain the chain rule like I'm a beginner,ELI5_EXPLANATION
+find the current in this voltage divider,CIRCUIT_ANALYSIS
+test my understanding of cryptography,CREATE_QUIZ
+explain virtual memory like I'm a beginner,ELI5_EXPLANATION
+which variables should I drop in this time series,FEATURE_SELECTION
+find the derivative of arctan(x),DIFFERENTIATE_FUNCTION
+is my answer 12 correct,CHECK_MATH_SOLUTION
+architect a home automation system,SYSTEM_DESIGN
+write a literature review on reinforcement learning,LITERATURE_REVIEW
+verify my answer for physics,CHECK_ANSWER
+Integrate sin^2(x).,INTEGRATE_FUNCTION
+design a system for a traffic light controller,SYSTEM_DESIGN
+summarize chapter 5,SUMMARIZE_NOTES
+simplify the expression 2x^2 - 8,SIMPLIFY_EXPRESSION
+integrate sin^2(x),INTEGRATE_FUNCTION
+compute the integral of e^x sin(x),INTEGRATE_FUNCTION
+what trends are in this sales data,DATA_ANALYSIS
+explain my linked list code,EXPLAIN_CODE
+propose a research idea for computer vision,RESEARCH_IDEA
+explain ambiguity in context-free grammars,EXPLAIN_CONCEPT
+what is the space complexity of this sorting function,FIND_COMPLEXITY
+suggest improvements because my model underfitting,MODEL_EXPLANATION
+how is determinants used in real life applications,REAL_WORLD_APPLICATION
+where does the area of a circle come from,DERIVE_FORMULA
+give an overview of SLAM,EXPLAIN_CONCEPT
+find the derivative of y = x^2,DIFFERENTIATE_FUNCTION
+Why is my model overfitting?,MODEL_EXPLANATION
+check my solution: y = 7,CHECK_MATH_SOLUTION
+Compare results with prior work.,COMPARE_PAPERS
+create flashcards for machine learning,CREATE_FLASHCARDS
+give me an analogy for the central limit theorem,ANALOGY_GENERATION
+can this Python recursion code be optimized,OPTIMIZE_CODE
+diagram the workflow of the cardiac cycle,DRAW_FLOWCHART
+find the derivative of 1/(x^2 + 1) and explain every step,SOLVE_STEP_BY_STEP
+find the error in my force calculation,FIND_ERROR
+verify the correctness of this algorithm,VERIFY_REASONING
+suggest improvements because my model overfitting,MODEL_EXPLANATION
+finish this this graph traversal,COMPLETE_CODE
+which variables should I drop in this regression,FEATURE_SELECTION
+derive the Lorentz force law,DERIVE_EQUATION
+flowchart the process of a login system,DRAW_FLOWCHART
+explain the chain rule using an analogy,ANALOGY_GENERATION
+review the methodology section of this research paper,CRITIQUE_METHOD
+analyze this sales data,DATA_ANALYSIS
+explain cross-validation using an analogy,ANALOGY_GENERATION
+derive the formula for the Euler's formula,DERIVE_FORMULA
+create flashcards for cryptography,CREATE_FLASHCARDS
+find the derivative of x^2 sin(x),DIFFERENTIATE_FUNCTION
+interpret these confusion matrix results,RESULT_INTERPRETATION
+prove the Pythagorean theorem,PROVE_THEOREM
+prove the mean value theorem,PROVE_THEOREM
+sketch the nephron and label its parts,DRAW_LABELED_DIAGRAM
+illustrate the respiratory system with labels,DRAW_LABELED_DIAGRAM
+interpret these accuracy metrics,RESULT_INTERPRETATION
+help me build intuition for SLAM,EXPLAIN_INTUITIVELY
+analyze the transfer function,SIGNAL_ANALYSIS
+how is special relativity used in real life applications,REAL_WORLD_APPLICATION
+create memory tricks for operating systems,EXAM_PREPARATION
+implement a logistic regression in Python,GENERATE_CODE
+determine the velocity after 5 seconds under gravity,SOLVE_NUMERICAL
+simplify 1/(x^2 + 1),SIMPLIFY_EXPRESSION
+what is the physical interpretation of the curl of a field,EXPLAIN_PHYSICAL_MEANING
+find the complexity of this Python recursion code,FIND_COMPLEXITY
+tell me about entropy,EXPLAIN_CONCEPT
+Generate ROS code for robot navigation.,GENERATE_CODE
+explain matrix rank in the simplest terms,ELI5_EXPLANATION
+generate compiler design interview questions,CREATE_QUIZ
+how does asymptotic notation work,EXPLAIN_CONCEPT
+what do this regression output tell me,RESULT_INTERPRETATION
+simplify e^x cos(x),SIMPLIFY_EXPRESSION
+find the Bode plot,SIGNAL_ANALYSIS
+give me an analogy for virtual memory,ANALOGY_GENERATION
+fix the colors on this graph,VISUALIZATION_IMPROVEMENT
+visualize the steps of the compilation pipeline on my canvas,DRAW_FLOWCHART
+contrast this thesis chapter with the related paper,COMPARE_PAPERS
+"I solved it and got 12, is that right",CHECK_MATH_SOLUTION
+why did my model performing poorly on test data,MODEL_EXPLANATION
+is water boils at 90C at sea level accurate,FACT_CHECK
+help me prepare for tomorrow's compiler design exam,EXAM_PREPARATION
+what features matter most in this regression,FEATURE_SELECTION
+analyze this RLC network,CIRCUIT_ANALYSIS
+design an efficient approach for load balancing,ALGORITHM_DESIGN
+sketch x^2 e^-x,GRAPH_FUNCTION
+summarize my notes on computer networks,SUMMARIZE_NOTES
+help me interpret this regression output,RESULT_INTERPRETATION
+what is the physical interpretation of the wavefunction,EXPLAIN_PHYSICAL_MEANING
+compute the integral of x e^x,INTEGRATE_FUNCTION
+create flashcards for CUDA,CREATE_FLASHCARDS
+what does the divergence actually mean,EXPLAIN_PHYSICAL_MEANING
+how should I revise database systems for the exam,EXAM_PREPARATION
+turn database systems into flashcards,CREATE_FLASHCARDS
+design an algorithm for finding the shortest path,ALGORITHM_DESIGN
+what is the space complexity of this BFS implementation,FIND_COMPLEXITY
+review the methodology section of this study,CRITIQUE_METHOD
+do a dimensional analysis of this formula,UNIT_ANALYSIS
+give me practice problems for digital logic,GENERATE_PRACTICE_PROBLEMS
+graph tan(x),GRAPH_FUNCTION
+verify my reasoning about this algorithm,VERIFY_REASONING
+solve (x^2 - 4)/(x - 2) and explain each step,SOLVE_STEP_BY_STEP
+generate MPI interview questions,CREATE_QUIZ
+spot the flaw in my force calculation,FIND_ERROR
+what does negative temperature actually mean,EXPLAIN_PHYSICAL_MEANING
+turn digital logic into flashcards,CREATE_FLASHCARDS
+explain backpropagation using an analogy,ANALOGY_GENERATION
+suggest a novel research direction in distributed systems,RESEARCH_IDEA
+find the current through a 10 ohm resistor,SOLVE_NUMERICAL
+what's an open problem in cryptography,RESEARCH_IDEA
+find the momentum of the system,SOLVE_NUMERICAL
+illustrate a BJT transistor with labels,DRAW_LABELED_DIAGRAM
+Explain the limitations.,CRITIQUE_METHOD
+fix the bug in my linked list code,DEBUG_CODE
+simplify x^2 sin(x),SIMPLIFY_EXPRESSION
+how is compiler parsing used in real life applications,REAL_WORLD_APPLICATION
+label the structure of a neuron,DRAW_LABELED_DIAGRAM
+compute the Fourier transform of this signal,SIGNAL_ANALYSIS
+write code for Dijkstra's algorithm in Java,GENERATE_CODE
+write quicksort in Python,GENERATE_CODE
+explain special relativity in the simplest terms,ELI5_EXPLANATION
+draw and label a plant cell,DRAW_LABELED_DIAGRAM
+how is blockchain consensus used in real life,REAL_WORLD_APPLICATION
+draw and label the human heart,DRAW_LABELED_DIAGRAM
+explain this Python recursion code,EXPLAIN_CODE
+find the voltage across this voltage divider,CIRCUIT_ANALYSIS
+verify the units in this formula,UNIT_ANALYSIS
+explain dynamic programming like I'm five,ELI5_EXPLANATION
+find the derivative of sqrt(x),DIFFERENTIATE_FUNCTION
+what is the current through a 10 ohm resistor,SOLVE_NUMERICAL
+is light travels faster than sound accurate,FACT_CHECK
+what features matter most in this sales data,FEATURE_SELECTION
+derive Maxwell's equations,DERIVE_EQUATION
+visualize the steps of DNA replication on my canvas,DRAW_FLOWCHART
+explain complex numbers as if I knew nothing about it,ELI5_EXPLANATION
+show a proof for the binomial theorem,PROVE_THEOREM
+fix the readability on this graph,VISUALIZATION_IMPROVEMENT
+Analyze algorithm correctness.,VERIFY_REASONING
+what's the time complexity of this graph traversal,FIND_COMPLEXITY
+design a system for a temperature regulation system,SYSTEM_DESIGN
+design an algorithm for detecting cycles in a graph,ALGORITHM_DESIGN
+Explain precision and recall.,EXPLAIN_CONCEPT
+complete the missing function in this Python recursion code,COMPLETE_CODE
+what does imaginary time actually mean,EXPLAIN_PHYSICAL_MEANING
+how should I revise machine learning for the exam,EXAM_PREPARATION
+fill in the rest of my binary search function,COMPLETE_CODE
+solve 2x^2 - 8 step by step,SOLVE_STEP_BY_STEP
+give me an analogy for the chain rule,ANALOGY_GENERATION
+find the factors of x^3 - 8,FACTOR_EXPRESSION
+summarize the literature on image segmentation,LITERATURE_REVIEW
+explain how this dynamic programming solution works,EXPLAIN_CODE
+differentiate y = x^2,DIFFERENTIATE_FUNCTION
+summarize my notes on MPI,SUMMARIZE_NOTES
+flowchart the process of the cardiac cycle,DRAW_FLOWCHART
+what's the difference between L1 and L2 regularization,COMPARE_METHODS
+find the complexity of merge sort,FIND_COMPLEXITY
+how is the central limit theorem used in real life applications,REAL_WORLD_APPLICATION
+simplify the expression cos(x)/x,SIMPLIFY_EXPRESSION
+generate database systems interview questions,CREATE_QUIZ
+explain cross-validation like I'm a beginner,ELI5_EXPLANATION
+explain why my model overfitting,MODEL_EXPLANATION
+contrast bagging and boosting,COMPARE_METHODS
+design a traffic light controller,SYSTEM_DESIGN
+Critique the methodology.,CRITIQUE_METHOD
+find an analogy to help me understand cross-validation,ANALOGY_GENERATION
+verify whether the speed of light is constant,FACT_CHECK
+is my answer x = -2 correct,CHECK_MATH_SOLUTION
+where is Taylor series used in practice,REAL_WORLD_APPLICATION
+which features should I remove from this sales data,FEATURE_SELECTION
+check my solution: 12,CHECK_MATH_SOLUTION
+compute the electric field at point P,SOLVE_NUMERICAL
+what is the Big-O of this merge sort,FIND_COMPLEXITY
+determine the Bode plot,SIGNAL_ANALYSIS
+explain how this BFS implementation works,EXPLAIN_CODE
+interpret these YOLO detection results,RESULT_INTERPRETATION
+is my circuit answer correct,CHECK_ANSWER
+fill in the rest of this Python recursion code,COMPLETE_CODE
+debug this merge sort,DEBUG_CODE
+Optimize this SQL query.,OPTIMIZE_CODE
+interpret the results of this regression output,RESULT_INTERPRETATION
+give me practice problems for cryptography,GENERATE_PRACTICE_PROBLEMS
+visualize dynamic programming intuitively,EXPLAIN_INTUITIVELY
+derive the equation for Maxwell's equations,DERIVE_EQUATION
+analyze the Fourier transform of this signal,SIGNAL_ANALYSIS
+is my reasoning correct for this induction proof,VERIFY_REASONING
+can this dynamic programming solution be optimized,OPTIMIZE_CODE
+show the steps of glycolysis as a flowchart,DRAW_FLOWCHART
+create memory tricks for CUDA,EXAM_PREPARATION
+explain attention mechanisms like I'm a beginner,ELI5_EXPLANATION
+make flashcards on MPI,CREATE_FLASHCARDS
+analyze whether the parser is correct,VERIFY_REASONING
+where is compiler parsing used in practice,REAL_WORLD_APPLICATION
+Find the bug causing segmentation faults.,DEBUG_CODE
+what features matter most in this dataset,FEATURE_SELECTION
+analyze the time complexity of this BFS implementation,FIND_COMPLEXITY
+explore this sales data,DATA_ANALYSIS
+explain the product rule intuitively,EXPLAIN_INTUITIVELY
+calculate the force on a 5 kg mass accelerating at 2 m/s^2,SOLVE_NUMERICAL
+what features matter most in this experiment's data,FEATURE_SELECTION
+Verify mathematical induction proof.,VERIFY_REASONING
+check dimensional consistency of the energy equation,UNIT_ANALYSIS
+Compare these two papers.,COMPARE_PAPERS
+show a proof for that sqrt(2) is irrational,PROVE_THEOREM
+which variables should I drop in this dataset,FEATURE_SELECTION
+generate harder versions of these MPI problems,GENERATE_PRACTICE_PROBLEMS
+compute the Bode plot,SIGNAL_ANALYSIS
+generate harder versions of these CUDA problems,GENERATE_PRACTICE_PROBLEMS
+generate practice questions on operating systems,GENERATE_PRACTICE_PROBLEMS
+Compare analog and digital signals.,COMPARE_METHODS
+Explain asymptotic notation.,EXPLAIN_CONCEPT
+interpret the results of these clustering results,RESULT_INTERPRETATION
+Visualize gradient descent.,EXPLAIN_INTUITIVELY
+help me select features for these survey results,FEATURE_SELECTION
+review this graph for y-range,VISUALIZATION_IMPROVEMENT
+what does entropy actually mean,EXPLAIN_PHYSICAL_MEANING
+flowchart the process of DNA replication,DRAW_FLOWCHART
+finish this this loop,COMPLETE_CODE
+why is my model not converging,MODEL_EXPLANATION
+factor x^3 - 8,FACTOR_EXPRESSION
+complete the implementation of my binary search function,COMPLETE_CODE
+give me practice problems for MPI,GENERATE_PRACTICE_PROBLEMS
+solve sin^2(x) step by step,SOLVE_STEP_BY_STEP
+did I get the circuit right,CHECK_ANSWER
+what's the prior work on my thesis topic,LITERATURE_REVIEW
+draw a labeled diagram of the benzene ring,DRAW_LABELED_DIAGRAM
+find the current in this transistor amplifier,CIRCUIT_ANALYSIS
+compare AES and ChaCha20,COMPARE_METHODS
+what is the antiderivative of 1/(x^2+1),INTEGRATE_FUNCTION
+analyze the frequency response,SIGNAL_ANALYSIS
+find the factors of x^2 - 5x + 6,FACTOR_EXPRESSION
+what is the momentum of the system,SOLVE_NUMERICAL
+verify my answer y = 7,CHECK_MATH_SOLUTION
+implement a REST API in Flask,GENERATE_CODE
+help me select features for this time series,FEATURE_SELECTION
+what are the key ideas of attention mechanisms,EXPLAIN_CONCEPT
+explain quantum tunneling as if I knew nothing about it,ELI5_EXPLANATION
+how would you design an elevator control system,SYSTEM_DESIGN
+generate exam-level challenges for CUDA,GENERATE_PRACTICE_PROBLEMS
+label the structure of a BJT transistor,DRAW_LABELED_DIAGRAM
+explain complex numbers using an analogy,ANALOGY_GENERATION
+find the bug in this Python recursion code,DEBUG_CODE
+find the derivative of e^x cos(x) and explain every step,SOLVE_STEP_BY_STEP
+fix the scaling on this graph,VISUALIZATION_IMPROVEMENT
+test my understanding of digital logic,CREATE_QUIZ
+differentiate x^3 - 3x,DIFFERENTIATE_FUNCTION
+find the bug in my linked list code,DEBUG_CODE
+design a waste-sorting robot,SYSTEM_DESIGN
+derive the compound interest formula,DERIVE_FORMULA
+is it true that light travels faster than sound,FACT_CHECK
+visualize the steps of photosynthesis on my canvas,DRAW_FLOWCHART
+show the derivation of Schrodinger's equation,DERIVE_EQUATION
+SGD and Adam: which is better,COMPARE_METHODS
+what's the difference between supervised and unsupervised learning,COMPARE_METHODS
+explain this merge sort,EXPLAIN_CODE
+derive Schrodinger's equation,DERIVE_EQUATION
+do an exploratory analysis of this time series,DATA_ANALYSIS
+identify research gaps in computer vision,RESEARCH_IDEA
+where does the Euler's formula come from,DERIVE_FORMULA
+finish this this dynamic programming solution,COMPLETE_CODE
+Design a traffic light controller.,SYSTEM_DESIGN
+make this Python recursion code faster,OPTIMIZE_CODE
+give me practice problems for computer networks,GENERATE_PRACTICE_PROBLEMS
+improve the labeling of this graph,VISUALIZATION_IMPROVEMENT
+differentiate sqrt(x),DIFFERENTIATE_FUNCTION
+complete the implementation of this merge sort,COMPLETE_CODE
+find the integral of x e^x,INTEGRATE_FUNCTION
+create a quiz on cryptography,CREATE_QUIZ
+explain the product rule like I'm a beginner,ELI5_EXPLANATION
+walk me through this BFS implementation,EXPLAIN_CODE
+write code for a binary search in C++,GENERATE_CODE
+architect a waste-sorting robot,SYSTEM_DESIGN
+show arctan(x) on a coordinate plane,GRAPH_FUNCTION
+make a flowchart for the water cycle,DRAW_FLOWCHART
+"I got x = -2, check if my answer is correct",CHECK_MATH_SOLUTION
+"I solved it and got y = 7, is that right",CHECK_MATH_SOLUTION
+work through x^3 - 3x step by step,SOLVE_STEP_BY_STEP
+interpret the results of this p-value,RESULT_INTERPRETATION
+compute d/dx of y = -x^2 + 4,DIFFERENTIATE_FUNCTION
+show the derivation of the wave equation,DERIVE_EQUATION
+what's the prior work on post-quantum cryptography,LITERATURE_REVIEW
+interpret the results of these accuracy metrics,RESULT_INTERPRETATION
+work through cos(x)/x step by step,SOLVE_STEP_BY_STEP
+explain special relativity using an analogy,ANALOGY_GENERATION
+how does blockchain consensus work,EXPLAIN_CONCEPT
+contrast Newtonian mechanics and relativity,COMPARE_METHODS
+how is the photoelectric effect used in real life,REAL_WORLD_APPLICATION
+verify the correctness of my argument,VERIFY_REASONING
+give me the intuition behind dropout,EXPLAIN_INTUITIVELY
+compute the equivalent resistance of this voltage divider,CIRCUIT_ANALYSIS
+propose a research idea for NLP,RESEARCH_IDEA
+verify the units in F = ma,UNIT_ANALYSIS
+explain virtual memory in the simplest terms,ELI5_EXPLANATION
+illustrate the human eye with labels,DRAW_LABELED_DIAGRAM
+walk me through this sorting function,EXPLAIN_CODE
+give me practice problems for machine learning,GENERATE_PRACTICE_PROBLEMS
+check dimensional consistency of the drag equation,UNIT_ANALYSIS
+create a quiz on machine learning,CREATE_QUIZ
+generate related work for my thesis topic,LITERATURE_REVIEW
+find an analogy to help me understand the chain rule,ANALOGY_GENERATION
+verify my answer for this problem,CHECK_ANSWER
+explain special relativity intuitively,EXPLAIN_INTUITIVELY
+Derive Schrodinger's equation.,DERIVE_EQUATION
+generate quantum-resistant alternatives for robotics,RESEARCH_IDEA
+why is my model performing poorly on test data,MODEL_EXPLANATION
+plot the function arctan(x),GRAPH_FUNCTION
+design a system for a waste-sorting robot,SYSTEM_DESIGN
+tell me about the central limit theorem,EXPLAIN_CONCEPT
+what's wrong with my integration,FIND_ERROR
+how would you design a waste-sorting robot,SYSTEM_DESIGN
+is the speed of light is constant accurate,FACT_CHECK
+debug this dynamic programming solution,DEBUG_CODE
+compute the integral of sec^2(x),INTEGRATE_FUNCTION
+what are the weaknesses of this research paper,CRITIQUE_METHOD
+find the transfer function,SIGNAL_ANALYSIS
+find the kinetic energy of a 2 kg ball at 3 m/s,SOLVE_NUMERICAL
+sketch a plant cell and label its parts,DRAW_LABELED_DIAGRAM
+draw a labeled diagram of the human heart,DRAW_LABELED_DIAGRAM
+explain the chain rule intuitively,EXPLAIN_INTUITIVELY
+optimize this SQL query for my linked list code,OPTIMIZE_CODE
+make a flowchart for gradient descent,DRAW_FLOWCHART
+compare analog and digital signals,COMPARE_METHODS
+visualize the steps of the water cycle on my canvas,DRAW_FLOWCHART
+draw the graph of sin(x)/x,GRAPH_FUNCTION
+fact-check this: humans use only 10% of their brain,FACT_CHECK
+generate quantum-resistant alternatives for cryptography,RESEARCH_IDEA
+suggest improvements because my model not converging,MODEL_EXPLANATION
+prove that there are infinitely many primes,PROVE_THEOREM
+show the derivation of the Euler's formula,DERIVE_FORMULA
+devise an algorithm for route planning,ALGORITHM_DESIGN
+find an analogy to help me understand eigenvalues,ANALOGY_GENERATION
+spot the flaw in my integration,FIND_ERROR
+flowchart the process of bubble sort,DRAW_FLOWCHART
+help me select features for this regression,FEATURE_SELECTION
+verify the units in the energy equation,UNIT_ANALYSIS
+find the integral of ln(x),INTEGRATE_FUNCTION
+explain electromagnetic induction in the simplest terms,ELI5_EXPLANATION
+what features matter most in these survey results,FEATURE_SELECTION
+compare TCP and UDP,COMPARE_METHODS
+give me a summary of CUDA,SUMMARIZE_NOTES
+explain backpropagation like I'm a beginner,ELI5_EXPLANATION
+how would you design a traffic light controller,SYSTEM_DESIGN
+Write Dijkstra's algorithm in Java.,GENERATE_CODE
+make this sorting function faster,OPTIMIZE_CODE
+Explain PID control.,EXPLAIN_CONCEPT
+interpret the results of this ROC curve,RESULT_INTERPRETATION
+find the integral of e^x sin(x),INTEGRATE_FUNCTION
+find the complexity of this sorting function,FIND_COMPLEXITY
+give practical applications of vector spaces,REAL_WORLD_APPLICATION
+draw a flowchart of the water cycle,DRAW_FLOWCHART
+how is ambiguity in context-free grammars used in real life,REAL_WORLD_APPLICATION
+differentiate x^2 e^-x,DIFFERENTIATE_FUNCTION
+find the voltage across this RC circuit,CIRCUIT_ANALYSIS
+make this BFS implementation faster,OPTIMIZE_CODE
+what is the physical interpretation of the Poynting vector,EXPLAIN_PHYSICAL_MEANING
+what does the wavefunction represent physically,EXPLAIN_PHYSICAL_MEANING
+check my solution: x = -2,CHECK_MATH_SOLUTION
+walk me through my linked list code,EXPLAIN_CODE
+check dimensional consistency of this formula,UNIT_ANALYSIS
+analyze the statistical significance in this time series,DATA_ANALYSIS
+condense database systems into key points,SUMMARIZE_NOTES
+verify my answer for chemistry,CHECK_ANSWER
+walk me through this merge sort,EXPLAIN_CODE
+draw the graph of y = -x^2 + 4,GRAPH_FUNCTION
+show sqrt(x) on a coordinate plane,GRAPH_FUNCTION
+help me build intuition for matrix rank,EXPLAIN_INTUITIVELY
+generate related work for graph neural networks,LITERATURE_REVIEW
+explain the physical meaning of the divergence,EXPLAIN_PHYSICAL_MEANING
+make flashcards on digital logic,CREATE_FLASHCARDS
+find the mistake in my derivation,FIND_ERROR
+check dimensional consistency of v = u + at,UNIT_ANALYSIS
+simplify the expression x^2 sin(x),SIMPLIFY_EXPRESSION
+help me interpret this ROC curve,RESULT_INTERPRETATION
+find the mistake in my matrix multiplication,FIND_ERROR
+finish this my linked list code,COMPLETE_CODE
+find the derivative of 1/(1+x^2),DIFFERENTIATE_FUNCTION
+draw a labeled diagram of a plant cell,DRAW_LABELED_DIAGRAM
+Review this graph and suggest improvements.,VISUALIZATION_IMPROVEMENT
+improve this visualization,VISUALIZATION_IMPROVEMENT
+derive the Euler's formula,DERIVE_FORMULA
+fix the clarity on this graph,VISUALIZATION_IMPROVEMENT
+help me interpret these p-values,RESULT_INTERPRETATION
+how should I revise OpenCL for the exam,EXAM_PREPARATION
+critique the methodology of this research paper,CRITIQUE_METHOD
+what's an open problem in robotics,RESEARCH_IDEA
+derive the equation for Schrodinger's equation,DERIVE_EQUATION
+draw the graph of x^2 sin(x),GRAPH_FUNCTION
+what does my binary search function do,EXPLAIN_CODE
+explain dropout intuitively,EXPLAIN_INTUITIVELY
+sketch x^2 sin(x),GRAPH_FUNCTION
+factor the expression x^2 - 5x + 6,FACTOR_EXPRESSION
+design an efficient approach for route planning,ALGORITHM_DESIGN
+make quiz questions for MPI,CREATE_QUIZ
+compare this paper with prior work,COMPARE_PAPERS
+write a literature review on federated learning,LITERATURE_REVIEW
+visualize the steps of gradient descent on my canvas,DRAW_FLOWCHART
+find the bug in this sorting function,DEBUG_CODE
+simplify the expression (x^2 - 4)/(x - 2),SIMPLIFY_EXPRESSION
+explain the limitations of this journal article,CRITIQUE_METHOD
+why is my model predicting only one class,MODEL_EXPLANATION
+show where my limit computation went wrong,FIND_ERROR
+what trends are in this experiment's data,DATA_ANALYSIS
+graph the curve e^x,GRAPH_FUNCTION
+find the factors of 6x^2 - x - 2,FACTOR_EXPRESSION
+summarize computer networks,SUMMARIZE_NOTES
+make a flowchart for a login system,DRAW_FLOWCHART
+interpret the results of these confidence intervals,RESULT_INTERPRETATION
+generate related work for federated learning,LITERATURE_REVIEW
+determine the momentum of the system,SOLVE_NUMERICAL
+Explain eigenvalues intuitively.,EXPLAIN_INTUITIVELY
+critique the methodology of this thesis chapter,CRITIQUE_METHOD
+what is the Big-O of merge sort,FIND_COMPLEXITY
+help me select features for this experiment's data,FEATURE_SELECTION
+do a dimensional analysis of v = u + at,UNIT_ANALYSIS
+create flashcards for compiler design,CREATE_FLASHCARDS
+why does this BFS implementation crash,DEBUG_CODE
+explain dynamic programming as if I knew nothing about it,ELI5_EXPLANATION
+work through 2x^2 - 8 step by step,SOLVE_STEP_BY_STEP
+create memory tricks for machine learning,EXAM_PREPARATION
+where is the bias-variance tradeoff used in practice,REAL_WORLD_APPLICATION
+how does regularization work,EXPLAIN_CONCEPT
+Give me practice questions.,GENERATE_PRACTICE_PROBLEMS
+what is the physical interpretation of negative temperature,EXPLAIN_PHYSICAL_MEANING
+what's the intuitive idea behind precision and recall,EXPLAIN_INTUITIVELY
+do a dimensional analysis of the drag equation,UNIT_ANALYSIS
+visualize the steps of glycolysis on my canvas,DRAW_FLOWCHART
+generate flashcards for computer networks,CREATE_FLASHCARDS
+derive the equation for the Lorentz force law,DERIVE_EQUATION
+generate harder versions of these cryptography problems,GENERATE_PRACTICE_PROBLEMS
+analyze whether this algorithm is correct,VERIFY_REASONING
+show the steps of the compilation pipeline as a flowchart,DRAW_FLOWCHART
+make quiz questions for digital logic,CREATE_QUIZ
+Show where my force calculation went wrong.,FIND_ERROR
+draw the graph of 1/(1+x^2),GRAPH_FUNCTION
+sketch a BJT transistor and label its parts,DRAW_LABELED_DIAGRAM
+draw a labeled diagram of the respiratory system,DRAW_LABELED_DIAGRAM
+implement a binary search in C++,GENERATE_CODE
+why does this graph traversal crash,DEBUG_CODE
+why does this merge sort crash,DEBUG_CODE
+review this graph for labeling,VISUALIZATION_IMPROVEMENT
+generate flashcards for database systems,CREATE_FLASHCARDS
+compute d/dx of tan(x),DIFFERENTIATE_FUNCTION
+find an analogy to help me understand dropout,ANALOGY_GENERATION
+give practical applications of post-quantum cryptography,REAL_WORLD_APPLICATION
+find an analogy to help me understand asymptotic notation,ANALOGY_GENERATION
+derive the equation for the wave equation,DERIVE_EQUATION
+debug this Python recursion code,DEBUG_CODE
+what's the intuitive idea behind vector spaces,EXPLAIN_INTUITIVELY
+what's the time complexity of merge sort,FIND_COMPLEXITY
+compare Random Forest and XGBoost,COMPARE_METHODS
+show the derivation of the quadratic formula,DERIVE_FORMULA
+come up with an algorithm to finding the shortest path,ALGORITHM_DESIGN
+evaluate the experimental design of this preprint,CRITIQUE_METHOD
+work through x^2 sin(x) step by step,SOLVE_STEP_BY_STEP
+explain this BFS implementation,EXPLAIN_CODE
+simplify (2x + 4)/2,SIMPLIFY_EXPRESSION
+Explain this BFS implementation.,EXPLAIN_CODE
+show the steps of a login system as a flowchart,DRAW_FLOWCHART
+verify my answer 3/5,CHECK_MATH_SOLUTION
+give me an analogy for post-quantum cryptography,ANALOGY_GENERATION
+find the factors of 2x^2 + 7x + 3,FACTOR_EXPRESSION
+reduce (2x + 4)/2 to simplest form,SIMPLIFY_EXPRESSION
+solve (x^2 - 4)/(x - 2) step by step,SOLVE_STEP_BY_STEP
+Design an algorithm for route planning.,ALGORITHM_DESIGN
+help me prepare for tomorrow's CUDA exam,EXAM_PREPARATION
+derive the formula for the distance formula,DERIVE_FORMULA
+generate viva questions for CUDA,CREATE_QUIZ
+condense OpenCL into key points,SUMMARIZE_NOTES
+sketch arctan(x),GRAPH_FUNCTION
+Generate viva questions.,CREATE_QUIZ
+show me how to solve x^2 - 9 with all steps,SOLVE_STEP_BY_STEP
+generate viva questions for cryptography,CREATE_QUIZ
+Find the flaw in this theorem proof.,FIND_ERROR
+ELI5 entropy,ELI5_EXPLANATION
+generate related work for reinforcement learning,LITERATURE_REVIEW
+optimize this SQL query for this Python recursion code,OPTIMIZE_CODE
+implement Dijkstra's algorithm in Java,GENERATE_CODE
+come up with an algorithm to detecting cycles in a graph,ALGORITHM_DESIGN
+show the derivation of the distance formula,DERIVE_FORMULA
+what does the Poynting vector represent physically,EXPLAIN_PHYSICAL_MEANING
+derive the ideal gas law,DERIVE_EQUATION
+what's a good metaphor for vector spaces,ANALOGY_GENERATION
+identify research gaps in distributed systems,RESEARCH_IDEA
+ELI5 compiler parsing,ELI5_EXPLANATION
+improve the title of this graph,VISUALIZATION_IMPROVEMENT
+come up with an algorithm to matching students to projects,ALGORITHM_DESIGN
+interpret these p-values,RESULT_INTERPRETATION
+what are real-world applications of determinants,REAL_WORLD_APPLICATION
+evaluate the experimental design of my experiment,CRITIQUE_METHOD
+show a proof for the mean value theorem,PROVE_THEOREM
+redraw this graph more clearly,VISUALIZATION_IMPROVEMENT
+sketch sin(x)/x,GRAPH_FUNCTION
+what's the difference between Random Forest and XGBoost,COMPARE_METHODS
+compare CNNs and Transformers,COMPARE_METHODS
+verify my reasoning about this induction proof,VERIFY_REASONING
+Compare CNNs and Transformers.,COMPARE_METHODS
+how is electromagnetic induction used in real life applications,REAL_WORLD_APPLICATION
+find the bug causing segmentation faults in this dynamic programming solution,DEBUG_CODE
+find an analogy to help me understand post-quantum cryptography,ANALOGY_GENERATION
+which features should I remove from my model,FEATURE_SELECTION
+compute d/dx of x^3 - 3x,DIFFERENTIATE_FUNCTION
+optimize this merge sort,OPTIMIZE_CODE
+is it true that humans use only 10% of their brain,FACT_CHECK
+what is the derivative of e^x,DIFFERENTIATE_FUNCTION
+check my physics calculations,CHECK_ANSWER
+is my answer x = 4 correct,CHECK_MATH_SOLUTION
+turn CUDA into flashcards,CREATE_FLASHCARDS
+check the units of the drag equation,UNIT_ANALYSIS
+solve this voltage divider,CIRCUIT_ANALYSIS
+"this graph is hard to read, improve it",VISUALIZATION_IMPROVEMENT
+show where my force calculation went wrong,FIND_ERROR
+create a quiz on MPI,CREATE_QUIZ
+show a proof for that there are infinitely many primes,PROVE_THEOREM
+compute the period of a 1 m pendulum,SOLVE_NUMERICAL
+show where my matrix multiplication went wrong,FIND_ERROR
+Interpret these confusion matrix results.,RESULT_INTERPRETATION
+what's the difference between Newtonian mechanics and relativity,COMPARE_METHODS
+evaluate the experimental design of this thesis chapter,CRITIQUE_METHOD
+complete the missing function in this class,COMPLETE_CODE
+explain asymptotic notation intuitively,EXPLAIN_INTUITIVELY
+which features should I remove from this time series,FEATURE_SELECTION
+condense CUDA into key points,SUMMARIZE_NOTES
+reduce (x^2 - 4)/(x - 2) to simplest form,SIMPLIFY_EXPRESSION
+graph x^3 - 3x,GRAPH_FUNCTION
+give me code for quicksort in Python,GENERATE_CODE
+explain compiler parsing as if I knew nothing about it,ELI5_EXPLANATION
+what is the space complexity of this merge sort,FIND_COMPLEXITY
+Design a waste-sorting robot.,SYSTEM_DESIGN
+generate exam-level challenges for computer networks,GENERATE_PRACTICE_PROBLEMS
+ELI5 blockchain consensus,ELI5_EXPLANATION
+find the period of a 1 m pendulum,SOLVE_NUMERICAL
+optimize this graph traversal,OPTIMIZE_CODE
+prove that that sqrt(2) is irrational,PROVE_THEOREM
+what's the intuitive idea behind the photoelectric effect,EXPLAIN_INTUITIVELY
+create flashcards for MPI,CREATE_FLASHCARDS
+simplify sin^2(x),SIMPLIFY_EXPRESSION
+write a literature review on image segmentation,LITERATURE_REVIEW
+draw and label a neuron,DRAW_LABELED_DIAGRAM
+make quiz questions for database systems,CREATE_QUIZ
+solve x^3 - 3x and explain each step,SOLVE_STEP_BY_STEP
+find the voltage across this transistor amplifier,CIRCUIT_ANALYSIS
+propose a research idea for machine learning,RESEARCH_IDEA
+explain the limitations of this preprint,CRITIQUE_METHOD
+verify my answer x = -2,CHECK_MATH_SOLUTION
+explore these survey results,DATA_ANALYSIS
+what does this BFS implementation do,EXPLAIN_CODE
+generate exam-level challenges for compiler design,GENERATE_PRACTICE_PROBLEMS
+factor 2x^2 + 7x + 3,FACTOR_EXPRESSION
+derive the wave equation,DERIVE_EQUATION
+what's the prior work on graph neural networks,LITERATURE_REVIEW
+can this BFS implementation be optimized,OPTIMIZE_CODE
+explain precision and recall,EXPLAIN_CONCEPT
+find the voltage across this op-amp circuit,CIRCUIT_ANALYSIS
+analyze the time complexity of this nested loop,FIND_COMPLEXITY
+what's the difference between AES and ChaCha20,COMPARE_METHODS
+prepare me for my digital logic exam,EXAM_PREPARATION
+review the methodology section of this journal article,CRITIQUE_METHOD
+how is limits used in real life,REAL_WORLD_APPLICATION
+give me the intuition behind quantum tunneling,EXPLAIN_INTUITIVELY
+summarize machine learning,SUMMARIZE_NOTES
+compare these two papers,COMPARE_PAPERS
+verify my answer x = 0 and x = 3,CHECK_MATH_SOLUTION
+plot the function y = x^2,GRAPH_FUNCTION
+give an overview of matrix rank,EXPLAIN_CONCEPT
+factorize 6x^2 - x - 2,FACTOR_EXPRESSION
+simplify x^2 - 9,SIMPLIFY_EXPRESSION
+what's an open problem in distributed systems,RESEARCH_IDEA
+Identify research gaps.,RESEARCH_IDEA
+how should I revise operating systems for the exam,EXAM_PREPARATION
+what does the Hamiltonian represent physically,EXPLAIN_PHYSICAL_MEANING
+contrast this journal article with the related paper,COMPARE_PAPERS
+explain why my model underfitting,MODEL_EXPLANATION
+help me select features for this dataset,FEATURE_SELECTION
+analyze the Bode plot,SIGNAL_ANALYSIS
+is my answer 3/5 correct,CHECK_MATH_SOLUTION
+generate practice questions on digital logic,GENERATE_PRACTICE_PROBLEMS
+Explain compiler parsing.,EXPLAIN_CONCEPT
+Generate harder versions of these problems.,GENERATE_PRACTICE_PROBLEMS
+architect a traffic light controller,SYSTEM_DESIGN
+draw a flowchart of gradient descent,DRAW_FLOWCHART
+test my understanding of operating systems,CREATE_QUIZ
+draw a labeled diagram of a four-stroke engine,DRAW_LABELED_DIAGRAM
+find the error in my limit computation,FIND_ERROR
+evaluate the experimental design of this conference paper,CRITIQUE_METHOD
+what's a good metaphor for the uncertainty principle,ANALOGY_GENERATION
+which features should I remove from these survey results,FEATURE_SELECTION
+improve this graph,VISUALIZATION_IMPROVEMENT
+help me prepare for tomorrow's database systems exam,EXAM_PREPARATION
+optimize my linked list code,OPTIMIZE_CODE
+generate exam-level challenges for OpenCL,GENERATE_PRACTICE_PROBLEMS
+differentiate ln(x),DIFFERENTIATE_FUNCTION
+verify whether humans use only 10% of their brain,FACT_CHECK
+fill in the rest of this BFS implementation,COMPLETE_CODE
+what's an open problem in computer vision,RESEARCH_IDEA
+devise an algorithm for matching students to projects,ALGORITHM_DESIGN
+compute the velocity after 5 seconds under gravity,SOLVE_NUMERICAL
+suggest a novel research direction in machine learning,RESEARCH_IDEA
+what's the time complexity of this BFS implementation,FIND_COMPLEXITY
+compare the results with prior work,COMPARE_PAPERS
+show the derivation of the volume of a sphere,DERIVE_FORMULA
+verify my answer x = 4,CHECK_MATH_SOLUTION
+compare BFS and DFS,COMPARE_METHODS
+what's wrong with my matrix multiplication,FIND_ERROR
+generate practice questions on database systems,GENERATE_PRACTICE_PROBLEMS
+optimize this SQL query for this merge sort,OPTIMIZE_CODE
+compute the integral of ln(x),INTEGRATE_FUNCTION
+fix the y-range on this graph,VISUALIZATION_IMPROVEMENT
+what does the divergence represent physically,EXPLAIN_PHYSICAL_MEANING
+show me how to solve (x^2 - 4)/(x - 2) with all steps,SOLVE_STEP_BY_STEP
+give me exam tips for MPI,EXAM_PREPARATION
+fix the labeling on this graph,VISUALIZATION_IMPROVEMENT
+help me prepare for tomorrow's computer networks exam,EXAM_PREPARATION
+explain dynamic programming in the simplest terms,ELI5_EXPLANATION
+help me prepare for tomorrow's operating systems exam,EXAM_PREPARATION
+Analyze this dataset.,DATA_ANALYSIS
+analyze the statistical significance in this experiment's data,DATA_ANALYSIS
+what is the physical interpretation of imaginary time,EXPLAIN_PHYSICAL_MEANING
+graph the curve x^3 - 3x,GRAPH_FUNCTION
+what do these confusion matrix results tell me,RESULT_INTERPRETATION
+spot the flaw in my matrix multiplication,FIND_ERROR
+do an exploratory analysis of these survey results,DATA_ANALYSIS
+What's the time complexity?,FIND_COMPLEXITY
+check dimensional consistency of this expression,UNIT_ANALYSIS
+explain the physical meaning of the Hamiltonian,EXPLAIN_PHYSICAL_MEANING
+what does this merge sort do,EXPLAIN_CODE
+tell me about SLAM,EXPLAIN_CONCEPT
+find the error in my integration,FIND_ERROR
+make this graph traversal faster,OPTIMIZE_CODE
+find the derivative of x^2 - 9 and explain every step,SOLVE_STEP_BY_STEP
+generate harder versions of these compiler design problems,GENERATE_PRACTICE_PROBLEMS
+make this dynamic programming solution faster,OPTIMIZE_CODE
+"I got x = 0 and x = 3, check if my answer is correct",CHECK_MATH_SOLUTION
+help me prepare for tomorrow's MPI exam,EXAM_PREPARATION
+what's wrong with my derivation,FIND_ERROR
+show the derivation of the sum of an arithmetic series,DERIVE_FORMULA
+Which features should I remove?,FEATURE_SELECTION
+give me an analogy for vector spaces,ANALOGY_GENERATION
+what is the final temperature of the mixture,SOLVE_NUMERICAL
+differentiate 1/(1+x^2),DIFFERENTIATE_FUNCTION
+analyze this experiment's data,DATA_ANALYSIS
+what's the difference between RSA and Kyber,COMPARE_METHODS
+explain ambiguity in context-free grammars like I'm five,ELI5_EXPLANATION
+improve the y-range of this graph,VISUALIZATION_IMPROVEMENT
+simplify sin^2(x) + cos^2(x),SIMPLIFY_EXPRESSION
+what's the prior work on image segmentation,LITERATURE_REVIEW
+find an analogy to help me understand dynamic programming,ANALOGY_GENERATION
+find the derivative of 3x^2 + 2x - 5 and explain every step,SOLVE_STEP_BY_STEP
+make quiz questions for OpenCL,CREATE_QUIZ
+create memory tricks for OpenCL,EXAM_PREPARATION
+walk me through this Python recursion code,EXPLAIN_CODE
+plot tan(x),GRAPH_FUNCTION
+is my answer y = 7 correct,CHECK_MATH_SOLUTION
+test my understanding of CUDA,CREATE_QUIZ
+complete the missing function in this dynamic programming solution,COMPLETE_CODE
+explain how my binary search function works,EXPLAIN_CODE
+do a dimensional analysis of F = ma,UNIT_ANALYSIS
+how do these papers differ,COMPARE_PAPERS
+verify my reasoning about the parser,VERIFY_REASONING
+give me the intuition behind garbage collection,EXPLAIN_INTUITIVELY
+come up with an algorithm to load balancing,ALGORITHM_DESIGN
+help me prepare for tomorrow's cryptography exam,EXAM_PREPARATION
+draw a flowchart of bubble sort,DRAW_FLOWCHART
+derive the quadratic formula,DERIVE_FORMULA
+prove that the Pythagorean theorem,PROVE_THEOREM
+what's wrong with my algebra,FIND_ERROR
+reduce sin^2(x) to simplest form,SIMPLIFY_EXPRESSION
+Explain blockchain consensus.,EXPLAIN_CONCEPT
+check my proof of this induction proof,VERIFY_REASONING
+derive the equation for the ideal gas law,DERIVE_EQUATION
+diagram the workflow of gradient descent,DRAW_FLOWCHART
+derive the sum of an arithmetic series,DERIVE_FORMULA
+give a proof of the mean value theorem,PROVE_THEOREM
+analyze this voltage divider,CIRCUIT_ANALYSIS
+write a literature review on post-quantum cryptography,LITERATURE_REVIEW
+evaluate the experimental design of this research paper,CRITIQUE_METHOD
+how does ambiguity in context-free grammars work,EXPLAIN_CONCEPT
+create a quiz on digital logic,CREATE_QUIZ
+supervised and unsupervised learning: which is better,COMPARE_METHODS
+explain my binary search function,EXPLAIN_CODE
+help me build intuition for attention mechanisms,EXPLAIN_INTUITIVELY
+Generate exam-level challenges.,GENERATE_PRACTICE_PROBLEMS
+give a proof of that there are infinitely many primes,PROVE_THEOREM
+find the derivative of tan(x),DIFFERENTIATE_FUNCTION
+what's a good metaphor for the photoelectric effect,ANALOGY_GENERATION
+what are the key ideas of SLAM,EXPLAIN_CONCEPT
+devise an algorithm for scheduling tasks,ALGORITHM_DESIGN
+make a revision sheet for CUDA,SUMMARIZE_NOTES
+integrate x^2 cos(x),INTEGRATE_FUNCTION
+explain angular momentum like I'm a beginner,ELI5_EXPLANATION
+show the derivation of the ideal gas law,DERIVE_EQUATION
+Summarize OpenCL.,SUMMARIZE_NOTES
+what does my linked list code do,EXPLAIN_CODE
+complete the implementation of this Python recursion code,COMPLETE_CODE
+compute the equivalent resistance of this RC circuit,CIRCUIT_ANALYSIS
+compute the final temperature of the mixture,SOLVE_NUMERICAL
+compare SN1 and SN2 reactions,COMPARE_METHODS
+improve the performance of this dynamic programming solution,OPTIMIZE_CODE
+Check my proof.,VERIFY_REASONING
+improve the colors of this graph,VISUALIZATION_IMPROVEMENT
+check the units of the energy equation,UNIT_ANALYSIS
+walk me through this dynamic programming solution,EXPLAIN_CODE
+finish this this BFS implementation,COMPLETE_CODE
+how is dynamic programming used in real life applications,REAL_WORLD_APPLICATION
+analyze the statistical significance in these survey results,DATA_ANALYSIS
+explain electromagnetic induction using an analogy,ANALOGY_GENERATION
+simplify the expression e^x cos(x),SIMPLIFY_EXPRESSION
+What does entropy actually mean?,EXPLAIN_PHYSICAL_MEANING
+explain the limitations of this conference paper,CRITIQUE_METHOD
+is my reasoning correct for the parser,VERIFY_REASONING
+give me exam tips for OpenCL,EXAM_PREPARATION
+find the factors of x^2 - 4,FACTOR_EXPRESSION
+generate a REST API in Flask,GENERATE_CODE
+Generate Arduino code.,GENERATE_CODE
+what is the antiderivative of x e^x,INTEGRATE_FUNCTION
+analyze the statistical significance in this sales data,DATA_ANALYSIS
+why does my linked list code crash,DEBUG_CODE
+simplify the expression x^3 - 3x,SIMPLIFY_EXPRESSION
+explain precision and recall using an analogy,ANALOGY_GENERATION
+give me an analogy for cross-validation,ANALOGY_GENERATION
+show me how to solve 2x^2 - 8 with all steps,SOLVE_STEP_BY_STEP
+Improve this graph.,VISUALIZATION_IMPROVEMENT
+architect an elevator control system,SYSTEM_DESIGN
+did I get the this problem right,CHECK_ANSWER
+Suggest a novel research direction.,RESEARCH_IDEA
+analyze this op-amp circuit,CIRCUIT_ANALYSIS
+solve this transistor amplifier,CIRCUIT_ANALYSIS
+show a proof for the Pythagorean theorem,PROVE_THEOREM
+how is the uncertainty principle used in real life applications,REAL_WORLD_APPLICATION
+graph sqrt(x),GRAPH_FUNCTION
+factor x^2 - 5x + 6,FACTOR_EXPRESSION
+condense computer networks into key points,SUMMARIZE_NOTES
+show me how to solve sin^2(x) with all steps,SOLVE_STEP_BY_STEP
+how does determinants work,EXPLAIN_CONCEPT
+find the integral of sec^2(x),INTEGRATE_FUNCTION
+explain the physical meaning of the Poynting vector,EXPLAIN_PHYSICAL_MEANING
+"I solved it and got 3/5, is that right",CHECK_MATH_SOLUTION
+explain the physical meaning of the curl of a field,EXPLAIN_PHYSICAL_MEANING
+why does this Python recursion code crash,DEBUG_CODE
+simplify (x^2 - 1)/(x - 1),SIMPLIFY_EXPRESSION
+come up with an algorithm to scheduling tasks,ALGORITHM_DESIGN
+give me exam tips for machine learning,EXAM_PREPARATION
+is my physics answer correct,CHECK_ANSWER
+help me build intuition for dynamic programming,EXPLAIN_INTUITIVELY
+is my answer x = 0 and x = 3 correct,CHECK_MATH_SOLUTION
+explain the physical meaning of the wavefunction,EXPLAIN_PHYSICAL_MEANING
+"I got x = 4, check if my answer is correct",CHECK_MATH_SOLUTION
+what is the derivative of arctan(x),DIFFERENTIATE_FUNCTION
+what is the antiderivative of e^x sin(x),INTEGRATE_FUNCTION
+generate harder versions of these computer networks problems,GENERATE_PRACTICE_PROBLEMS
+suggest a novel research direction in robotics,RESEARCH_IDEA
+help me build intuition for blockchain consensus,EXPLAIN_INTUITIVELY
+explain blockchain consensus like I'm a beginner,ELI5_EXPLANATION
+plot sin(x)/x,GRAPH_FUNCTION
+summarize my notes on machine learning,SUMMARIZE_NOTES
+Graph y=x^3-3x.,GRAPH_FUNCTION
+give a proof of that sqrt(2) is irrational,PROVE_THEOREM
+what's the prior work on federated learning,LITERATURE_REVIEW
+what's a good metaphor for backpropagation,ANALOGY_GENERATION
+how would you design a distributed system,SYSTEM_DESIGN
+how would you design a home automation system,SYSTEM_DESIGN
+complete the implementation of this graph traversal,COMPLETE_CODE
+what is the physical interpretation of the Hamiltonian,EXPLAIN_PHYSICAL_MEANING
+calculate the period of a 1 m pendulum,SOLVE_NUMERICAL
+check my solution: x = 0 and x = 3,CHECK_MATH_SOLUTION
+draw a labeled diagram of the human eye,DRAW_LABELED_DIAGRAM
+find the mistake in my integration,FIND_ERROR
+is it true that water boils at 90C at sea level,FACT_CHECK
+what is determinants,EXPLAIN_CONCEPT
+interpret these confidence intervals,RESULT_INTERPRETATION
+Design a distributed system.,SYSTEM_DESIGN
+what is the kinetic energy of a 2 kg ball at 3 m/s,SOLVE_NUMERICAL
+explain blockchain consensus like I'm five,ELI5_EXPLANATION
+find the bug in this graph traversal,DEBUG_CODE
+improve the clarity of this graph,VISUALIZATION_IMPROVEMENT
+Evaluate experimental design.,CRITIQUE_METHOD
+write code for a REST API in Flask,GENERATE_CODE
+generate viva questions for MPI,CREATE_QUIZ
+show where my derivation went wrong,FIND_ERROR
+generate quantum-resistant alternatives for computer vision,RESEARCH_IDEA
+Create a cryptography viva.,CREATE_QUIZ
+generate quicksort in Python,GENERATE_CODE
+verify the units in v = u + at,UNIT_ANALYSIS
+design an elevator control system,SYSTEM_DESIGN
+did I get the the homework right,CHECK_ANSWER
+explain how this sorting function works,EXPLAIN_CODE
+show the parts of a BJT transistor,DRAW_LABELED_DIAGRAM
+differentiate x^2 sin(x),DIFFERENTIATE_FUNCTION
+prove the fundamental theorem of calculus,PROVE_THEOREM
+summarize the literature on graph neural networks,LITERATURE_REVIEW
+design an algorithm for load balancing,ALGORITHM_DESIGN
+give me code for ROS code for robot navigation,GENERATE_CODE
+Find the transfer function.,SIGNAL_ANALYSIS
+integrate e^x sin(x),INTEGRATE_FUNCTION
+make practice problems about compiler design,GENERATE_PRACTICE_PROBLEMS
+derive the volume of a sphere,DERIVE_FORMULA
+determine the impulse response,SIGNAL_ANALYSIS
+generate related work for image segmentation,LITERATURE_REVIEW
+Compare Newtonian mechanics and relativity.,COMPARE_METHODS
+compute the equivalent resistance of this transistor amplifier,CIRCUIT_ANALYSIS
+simplify (x^2 - 4)/(x - 2),SIMPLIFY_EXPRESSION
+show sin(x)/x on a coordinate plane,GRAPH_FUNCTION
+create a quiz on compiler design,CREATE_QUIZ
+improve the performance of my binary search function,OPTIMIZE_CODE
+did I get the physics right,CHECK_ANSWER
+find the integral of sin^2(x),INTEGRATE_FUNCTION
+factor 6x^2 - x - 2,FACTOR_EXPRESSION
+check my proof of this theorem proof,VERIFY_REASONING
+where is the uncertainty principle used in practice,REAL_WORLD_APPLICATION
+help me prepare for tomorrow's machine learning exam,EXAM_PREPARATION
+which features should I remove from this experiment's data,FEATURE_SELECTION
+which variables should I drop in my model,FEATURE_SELECTION
+design a system for a distributed system,SYSTEM_DESIGN
+analyze the time complexity of my linked list code,FIND_COMPLEXITY
+show a proof for Bayes theorem,PROVE_THEOREM
+give me code for a REST API in Flask,GENERATE_CODE
+sketch the human heart and label its parts,DRAW_LABELED_DIAGRAM
+what features matter most in this time series,FEATURE_SELECTION
+where does the compound interest formula come from,DERIVE_FORMULA
+give me the intuition behind complex numbers,EXPLAIN_INTUITIVELY
+show the derivation of the Lorentz force law,DERIVE_EQUATION
+verify my reasoning about this theorem proof,VERIFY_REASONING
+make quiz questions for operating systems,CREATE_QUIZ
+review the methodology section of this preprint,CRITIQUE_METHOD
+compute the momentum of the system,SOLVE_NUMERICAL
+contrast this preprint with the related paper,COMPARE_PAPERS
+solve this op-amp circuit,CIRCUIT_ANALYSIS
+"I got 3/5, check if my answer is correct",CHECK_MATH_SOLUTION
+Review my methodology section.,CRITIQUE_METHOD
+Create flashcards for compiler design.,CREATE_FLASHCARDS
+work through 3x^2 + 2x - 5 step by step,SOLVE_STEP_BY_STEP
+find the electric field at point P,SOLVE_NUMERICAL
+identify research gaps in robotics,RESEARCH_IDEA
+derive the formula for the volume of a sphere,DERIVE_FORMULA
+what are the weaknesses of this thesis chapter,CRITIQUE_METHOD
+explain the limitations of this study,CRITIQUE_METHOD
+Explain Maxwell's equations like I'm a beginner.,ELI5_EXPLANATION
+make practice problems about computer networks,GENERATE_PRACTICE_PROBLEMS
+explain the physical meaning of negative temperature,EXPLAIN_PHYSICAL_MEANING
+what's the time complexity of this nested loop,FIND_COMPLEXITY
+find the final temperature of the mixture,SOLVE_NUMERICAL
+Summarize this research paper.,SUMMARIZE_NOTES
+Find the electric field at point P.,SOLVE_NUMERICAL
+what do these clustering results tell me,RESULT_INTERPRETATION
+generate exam-level challenges for cryptography,GENERATE_PRACTICE_PROBLEMS
+show where my proof attempt went wrong,FIND_ERROR
+help me select features for this sales data,FEATURE_SELECTION
+make practice problems about operating systems,GENERATE_PRACTICE_PROBLEMS
+give me code for Dijkstra's algorithm in Java,GENERATE_CODE
+where does the quadratic formula come from,DERIVE_FORMULA
+verify whether the Great Wall is visible from space,FACT_CHECK
+factor x^2 - 9,FACTOR_EXPRESSION
+find the integral of x^2 cos(x),INTEGRATE_FUNCTION
+do a dimensional analysis of the energy equation,UNIT_ANALYSIS
+make flashcards on OpenCL,CREATE_FLASHCARDS
+analyze this RC circuit,CIRCUIT_ANALYSIS
+show where my algebra went wrong,FIND_ERROR
+optimize this SQL query for this BFS implementation,OPTIMIZE_CODE
+compute d/dx of arctan(x),DIFFERENTIATE_FUNCTION
+find the complexity of this nested loop,FIND_COMPLEXITY
+what's a good metaphor for Taylor series,ANALOGY_GENERATION
+review this graph for readability,VISUALIZATION_IMPROVEMENT
+Create memory tricks.,EXAM_PREPARATION
+compute the equivalent resistance of this op-amp circuit,CIRCUIT_ANALYSIS
+propose a research idea for distributed systems,RESEARCH_IDEA
+spot the flaw in my derivation,FIND_ERROR
+differentiate arctan(x),DIFFERENTIATE_FUNCTION
+how is gradient descent used in real life applications,REAL_WORLD_APPLICATION
+summarize my notes on chapter 5,SUMMARIZE_NOTES
+summarize the literature on reinforcement learning,LITERATURE_REVIEW
+explain attention mechanisms using an analogy,ANALOGY_GENERATION
+critique the methodology of this preprint,CRITIQUE_METHOD
+propose a research idea for robotics,RESEARCH_IDEA
+give an overview of special relativity,EXPLAIN_CONCEPT
+why does my binary search function crash,DEBUG_CODE
+summarize the literature on post-quantum cryptography,LITERATURE_REVIEW
+"I got y = 7, check if my answer is correct",CHECK_MATH_SOLUTION
+visualize the steps of bubble sort on my canvas,DRAW_FLOWCHART
+fix the bug in this Python recursion code,DEBUG_CODE
+determine the electric field at point P,SOLVE_NUMERICAL
+Why can't anything travel faster than light?,EXPLAIN_CONCEPT
+are the units consistent in this formula,UNIT_ANALYSIS
+what are the key ideas of blockchain consensus,EXPLAIN_CONCEPT
+show the parts of the respiratory system,DRAW_LABELED_DIAGRAM
+explain compiler parsing intuitively,EXPLAIN_INTUITIVELY
+what does this sorting function do,EXPLAIN_CODE
+architect a temperature regulation system,SYSTEM_DESIGN
+give me code for Arduino code to blink an LED,GENERATE_CODE
+analyze the time complexity of this algorithm,FIND_COMPLEXITY
+solve x^2 sin(x) and explain each step,SOLVE_STEP_BY_STEP
+give an overview of gradient descent,EXPLAIN_CONCEPT
+explain wave-particle duality as if I knew nothing about it,ELI5_EXPLANATION
+help me build intuition for quantum tunneling,EXPLAIN_INTUITIVELY
+compute d/dx of x^2 sin(x),DIFFERENTIATE_FUNCTION
+check the units of v = u + at,UNIT_ANALYSIS
+what is the Big-O of this sorting function,FIND_COMPLEXITY
+what's the prior work on reinforcement learning,LITERATURE_REVIEW
+flowchart the process of binary search,DRAW_FLOWCHART
+what are the key ideas of electromagnetic induction,EXPLAIN_CONCEPT
+what's the intuitive idea behind SLAM,EXPLAIN_INTUITIVELY
+check the units of this formula,UNIT_ANALYSIS
+calculate the velocity after 5 seconds under gravity,SOLVE_NUMERICAL
+find the bug causing segmentation faults in this sorting function,DEBUG_CODE
+Summarize this thesis chapter.,SUMMARIZE_NOTES
+create memory tricks for compiler design,EXAM_PREPARATION
+How is quantum tunneling used in real life?,REAL_WORLD_APPLICATION
+what is the derivative of y = x^2,DIFFERENTIATE_FUNCTION
+give an overview of the central limit theorem,EXPLAIN_CONCEPT
+Improve the scaling so the sine curve is visible.,VISUALIZATION_IMPROVEMENT
+factorize 2x^2 + 7x + 3,FACTOR_EXPRESSION
+create memory tricks for MPI,EXAM_PREPARATION
+what is dynamic programming,EXPLAIN_CONCEPT
+find the bug causing segmentation faults in this graph traversal,DEBUG_CODE
+solve x^2 sin(x) step by step,SOLVE_STEP_BY_STEP
+find the complexity of this BFS implementation,FIND_COMPLEXITY
+fix the bug in my binary search function,DEBUG_CODE
+create flashcards for digital logic,CREATE_FLASHCARDS
+check the units of F = ma,UNIT_ANALYSIS
+simplify x^3 - 3x,SIMPLIFY_EXPRESSION
+prepare me for my MPI exam,EXAM_PREPARATION
+write a logistic regression in Python,GENERATE_CODE
+find the derivative of x^2 e^-x,DIFFERENTIATE_FUNCTION
+draw and label the nephron,DRAW_LABELED_DIAGRAM
+determine the final temperature of the mixture,SOLVE_NUMERICAL
+make practice problems about digital logic,GENERATE_PRACTICE_PROBLEMS
+what does the Hamiltonian actually mean,EXPLAIN_PHYSICAL_MEANING
+how does dynamic programming work,EXPLAIN_CONCEPT
+simplify the expression sin^2(x) + cos^2(x),SIMPLIFY_EXPRESSION
+what is the space complexity of this nested loop,FIND_COMPLEXITY
+Explain ambiguity in CFGs.,EXPLAIN_CONCEPT
+review this graph for clarity,VISUALIZATION_IMPROVEMENT
+explain why my model not converging,MODEL_EXPLANATION
+compute the impulse response,SIGNAL_ANALYSIS
+what are the key ideas of quantum tunneling,EXPLAIN_CONCEPT
+verify my reasoning about my argument,VERIFY_REASONING
+fix the bug in this sorting function,DEBUG_CODE
+Calculate the velocity after 5 seconds under gravity.,SOLVE_NUMERICAL
+make a revision sheet for compiler design,SUMMARIZE_NOTES
+fix the bug in this dynamic programming solution,DEBUG_CODE
+explore this experiment's data,DATA_ANALYSIS
+Analyze YOLO detection results.,RESULT_INTERPRETATION
+contrast BFS and DFS,COMPARE_METHODS
+find the mistake in my limit computation,FIND_ERROR
+give an overview of virtual memory,EXPLAIN_CONCEPT
+what does this graph traversal do,EXPLAIN_CODE
+what are the weaknesses of this study,CRITIQUE_METHOD
+prove the binomial theorem,PROVE_THEOREM
+what's the difference between BFS and DFS,COMPARE_METHODS
+compute the current through a 10 ohm resistor,SOLVE_NUMERICAL
+check my the homework calculations,CHECK_ANSWER
+sketch a neuron and label its parts,DRAW_LABELED_DIAGRAM
+help me interpret these YOLO detection results,RESULT_INTERPRETATION
+what's the difference between TCP and UDP,COMPARE_METHODS
+check my solution: 3/5,CHECK_MATH_SOLUTION
+help me prepare for tomorrow's OpenCL exam,EXAM_PREPARATION
+draw the graph of e^x,GRAPH_FUNCTION
+compute d/dx of sin(x)/x,DIFFERENTIATE_FUNCTION
+finish this my binary search function,COMPLETE_CODE
+generate flashcards for MPI,CREATE_FLASHCARDS
+prove that that there are infinitely many primes,PROVE_THEOREM
+suggest improvements because my model predicting only one class,MODEL_EXPLANATION
+plot ln(x),GRAPH_FUNCTION
+check my chemistry calculations,CHECK_ANSWER
+is the Great Wall is visible from space accurate,FACT_CHECK
+turn OpenCL into flashcards,CREATE_FLASHCARDS
+calculate the momentum of the system,SOLVE_NUMERICAL
+what's the time complexity of this Python recursion code,FIND_COMPLEXITY
+determine the Fourier transform of this signal,SIGNAL_ANALYSIS
+explain SLAM,EXPLAIN_CONCEPT
+give me an analogy for the bias-variance tradeoff,ANALOGY_GENERATION
+diagram the workflow of the TCP handshake,DRAW_FLOWCHART
+review this chart,VISUALIZATION_IMPROVEMENT
+complete the missing function in my linked list code,COMPLETE_CODE
+generate flashcards for digital logic,CREATE_FLASHCARDS
+identify research gaps in NLP,RESEARCH_IDEA
+suggest improvements because my model performing poorly on test data,MODEL_EXPLANATION
+contrast L1 and L2 regularization,COMPARE_METHODS
+Why does dynamic programming work?,EXPLAIN_CONCEPT
+which variables should I drop in these survey results,FEATURE_SELECTION
+give an overview of the photoelectric effect,EXPLAIN_CONCEPT
+check my answer for physics,CHECK_ANSWER
+reduce e^x cos(x) to simplest form,SIMPLIFY_EXPRESSION
+factorize x^3 - 8,FACTOR_EXPRESSION
+generate flashcards for cryptography,CREATE_FLASHCARDS
+generate Arduino code to blink an LED,GENERATE_CODE
+what does this dynamic programming solution do,EXPLAIN_CODE
+what's an open problem in machine learning,RESEARCH_IDEA
+propose a research idea for cryptography,RESEARCH_IDEA
+fact-check this: the Great Wall is visible from space,FACT_CHECK
+what is the derivative of x^2 sin(x),DIFFERENTIATE_FUNCTION
+are the units consistent in the energy equation,UNIT_ANALYSIS
+integrate sec^2(x),INTEGRATE_FUNCTION
+design an algorithm for scheduling tasks,ALGORITHM_DESIGN
+derive the area of a circle,DERIVE_FORMULA
+which features should I remove from this regression,FEATURE_SELECTION
+give practical applications of special relativity,REAL_WORLD_APPLICATION
+prepare me for my computer networks exam,EXAM_PREPARATION
+Explain SLAM.,EXPLAIN_CONCEPT
+contrast Random Forest and XGBoost,COMPARE_METHODS
+solve e^x cos(x) and explain each step,SOLVE_STEP_BY_STEP
+analyze the time complexity of this sorting function,FIND_COMPLEXITY
+analyze the impulse response,SIGNAL_ANALYSIS
+draw a flowchart of a login system,DRAW_FLOWCHART
+which variables should I drop in this sales data,FEATURE_SELECTION
+summarize CUDA,SUMMARIZE_NOTES
+what is the derivative of 1/(1+x^2),DIFFERENTIATE_FUNCTION
+design an algorithm for matching students to projects,ALGORITHM_DESIGN
+diagram the workflow of binary search,DRAW_FLOWCHART
+make a flowchart for Dijkstra's algorithm,DRAW_FLOWCHART
+optimize this BFS implementation,OPTIMIZE_CODE
+create flashcards for database systems,CREATE_FLASHCARDS
+why is my model underfitting,MODEL_EXPLANATION
+prepare me for my database systems exam,EXAM_PREPARATION
+do an exploratory analysis of this experiment's data,DATA_ANALYSIS
+find the current in this op-amp circuit,CIRCUIT_ANALYSIS
+Complete the missing function.,COMPLETE_CODE
+what features matter most in my model,FEATURE_SELECTION
+show the derivation of the lens equation,DERIVE_EQUATION
+write Arduino code to blink an LED,GENERATE_CODE
+check my answer for circuit,CHECK_ANSWER
+did I get the chemistry right,CHECK_ANSWER
+Compare Random Forest and XGBoost.,COMPARE_METHODS
+where is virtual memory used in practice,REAL_WORLD_APPLICATION
+critique this graph,VISUALIZATION_IMPROVEMENT
+reduce cos(x)/x to simplest form,SIMPLIFY_EXPRESSION
+where is special relativity used in practice,REAL_WORLD_APPLICATION
+improve the performance of this BFS implementation,OPTIMIZE_CODE
+is it true that the Great Wall is visible from space,FACT_CHECK
+verify the correctness of this theorem proof,VERIFY_REASONING
+Add important points and labels to this graph.,VISUALIZATION_IMPROVEMENT
+draw and label the benzene ring,DRAW_LABELED_DIAGRAM
+compare bagging and boosting,COMPARE_METHODS
+review this graph for title,VISUALIZATION_IMPROVEMENT
+summarize my notes on compiler design,SUMMARIZE_NOTES
+what are the weaknesses of this journal article,CRITIQUE_METHOD
+how should I revise MPI for the exam,EXAM_PREPARATION
+summarize my notes on operating systems,SUMMARIZE_NOTES
+what trends are in these survey results,DATA_ANALYSIS
+what's a good metaphor for cross-validation,ANALOGY_GENERATION
+check the units of this expression,UNIT_ANALYSIS
+what's a good metaphor for blockchain consensus,ANALOGY_GENERATION
+why did my model underfitting,MODEL_EXPLANATION
+solve this RC circuit,CIRCUIT_ANALYSIS
+analyze this transistor amplifier,CIRCUIT_ANALYSIS
+integrate x e^x,INTEGRATE_FUNCTION
+what does the Poynting vector actually mean,EXPLAIN_PHYSICAL_MEANING
+Make a revision sheet.,SUMMARIZE_NOTES
+compute the frequency response,SIGNAL_ANALYSIS
+factor the expression 6x^2 - x - 2,FACTOR_EXPRESSION
+create a quiz on computer networks,CREATE_QUIZ
+find the bug in this dynamic programming solution,DEBUG_CODE
+simplify the expression 1/(x^2 + 1),SIMPLIFY_EXPRESSION
+fact-check this: the speed of light is constant,FACT_CHECK
+where does the volume of a sphere come from,DERIVE_FORMULA
+where is post-quantum cryptography used in practice,REAL_WORLD_APPLICATION
+check my proof of this algorithm,VERIFY_REASONING
+optimize this sorting function,OPTIMIZE_CODE
+create a quiz on database systems,CREATE_QUIZ
+make quiz questions for compiler design,CREATE_QUIZ
+generate flashcards for compiler design,CREATE_FLASHCARDS
+fact-check this: water boils at 90C at sea level,FACT_CHECK
+show the steps of binary search as a flowchart,DRAW_FLOWCHART
+how is SLAM used in real life,REAL_WORLD_APPLICATION
+reduce x^2 sin(x) to simplest form,SIMPLIFY_EXPRESSION
+make flashcards on operating systems,CREATE_FLASHCARDS
+graph 1/(1+x^2),GRAPH_FUNCTION
+improve the performance of my linked list code,OPTIMIZE_CODE
+Find the mistake in my integration.,FIND_ERROR
+generate quantum-resistant alternatives for machine learning,RESEARCH_IDEA
+suggest a novel research direction in cryptography,RESEARCH_IDEA
+what is the electric field at point P,SOLVE_NUMERICAL
+finish this this class,COMPLETE_CODE
+Explain confidence intervals.,EXPLAIN_CONCEPT
+generate related work for post-quantum cryptography,LITERATURE_REVIEW
+compute the transfer function,SIGNAL_ANALYSIS
+design a home automation system,SYSTEM_DESIGN
+analyze whether this induction proof is correct,VERIFY_REASONING
+Why is my sensor noisy?,VERIFY_REASONING
+Check parser correctness.,VERIFY_REASONING
+do a dimensional analysis of this expression,UNIT_ANALYSIS
+give me a summary of this lecture,SUMMARIZE_NOTES
+fill in the rest of this class,COMPLETE_CODE
+why does this dynamic programming solution crash,DEBUG_CODE
+"I solved it and got x = -2, is that right",CHECK_MATH_SOLUTION
+calculate the kinetic energy of a 2 kg ball at 3 m/s,SOLVE_NUMERICAL
+turn MPI into flashcards,CREATE_FLASHCARDS
+factor x^2 - 4,FACTOR_EXPRESSION
+explain how this graph traversal works,EXPLAIN_CODE
+prove that the binomial theorem,PROVE_THEOREM
+make practice problems about OpenCL,GENERATE_PRACTICE_PROBLEMS
+factorize x^2 - 4,FACTOR_EXPRESSION
+complete the missing function in my binary search function,COMPLETE_CODE
+is my reasoning correct for my argument,VERIFY_REASONING
+derive the distance formula,DERIVE_FORMULA
+give a proof of the Pythagorean theorem,PROVE_THEOREM
+make a flowchart for the cardiac cycle,DRAW_FLOWCHART
+find the error in my algebra,FIND_ERROR
+what does imaginary time represent physically,EXPLAIN_PHYSICAL_MEANING
+give a proof of Bayes theorem,PROVE_THEOREM
+finish this this merge sort,COMPLETE_CODE
+which variables should I drop in this experiment's data,FEATURE_SELECTION
+interpret the results of these confusion matrix results,RESULT_INTERPRETATION
+Test my understanding of MPI.,CREATE_QUIZ
+show me how to solve 1/(x^2 + 1) with all steps,SOLVE_STEP_BY_STEP
+what do this p-value tell me,RESULT_INTERPRETATION
+plot the function 1/(1+x^2),GRAPH_FUNCTION
+Newtonian mechanics and relativity: which is better,COMPARE_METHODS
+generate harder versions of these machine learning problems,GENERATE_PRACTICE_PROBLEMS
+find the bug causing segmentation faults in this BFS implementation,DEBUG_CODE
+what is the derivative of sin(x)/x,DIFFERENTIATE_FUNCTION
+plot the function e^x,GRAPH_FUNCTION
+derive the formula for the compound interest formula,DERIVE_FORMULA
+make a revision sheet for database systems,SUMMARIZE_NOTES
+Why does the product rule work?,EXPLAIN_CONCEPT
+derive the equation for the lens equation,DERIVE_EQUATION
+give me code for a logistic regression in Python,GENERATE_CODE
+how does gradient descent work,EXPLAIN_CONCEPT
+suggest a novel research direction in NLP,RESEARCH_IDEA
+what is the force on a 5 kg mass accelerating at 2 m/s^2,SOLVE_NUMERICAL
+where does the sum of an arithmetic series come from,DERIVE_FORMULA
+what is the antiderivative of x^2 cos(x),INTEGRATE_FUNCTION
+factorize x^2 - 9,FACTOR_EXPRESSION
+find the bug causing segmentation faults in my binary search function,DEBUG_CODE
+RSA and Kyber: which is better,COMPARE_METHODS
+design an algorithm for route planning,ALGORITHM_DESIGN
+make flashcards on database systems,CREATE_FLASHCARDS
+improve the performance of this graph traversal,OPTIMIZE_CODE
+make my linked list code faster,OPTIMIZE_CODE
+generate flashcards for machine learning,CREATE_FLASHCARDS
+interpret this ROC curve,RESULT_INTERPRETATION
+why did my model predicting only one class,MODEL_EXPLANATION
+where is gradient descent used in practice,REAL_WORLD_APPLICATION
+explain why my model performing poorly on test data,MODEL_EXPLANATION
+simplify the expression 3x^2 + 2x - 5,SIMPLIFY_EXPRESSION
+find the factors of x^2 - 9,FACTOR_EXPRESSION
+finish this this Python recursion code,COMPLETE_CODE
+summarize this lecture,SUMMARIZE_NOTES
+solve 3x^2 + 2x - 5 and explain each step,SOLVE_STEP_BY_STEP
+find the bug in this merge sort,DEBUG_CODE
+what's wrong with my limit computation,FIND_ERROR
+where is electromagnetic induction used in practice,REAL_WORLD_APPLICATION
+explain how my linked list code works,EXPLAIN_CODE
+optimize this SQL query for this dynamic programming solution,OPTIMIZE_CODE
+compute the kinetic energy of a 2 kg ball at 3 m/s,SOLVE_NUMERICAL
+devise an algorithm for detecting cycles in a graph,ALGORITHM_DESIGN
+debug this sorting function,DEBUG_CODE
+contrast this conference paper with the related paper,COMPARE_PAPERS
+interpret the results of these p-values,RESULT_INTERPRETATION
+graph the curve 1/(1+x^2),GRAPH_FUNCTION
+Analyze this RC circuit.,CIRCUIT_ANALYSIS
+generate flashcards for operating systems,CREATE_FLASHCARDS
+optimize this dynamic programming solution,OPTIMIZE_CODE
+Prepare me for tomorrow's exam.,EXAM_PREPARATION
+find the derivative of 2x^2 - 8 and explain every step,SOLVE_STEP_BY_STEP
+give me practice problems for compiler design,GENERATE_PRACTICE_PROBLEMS
+create flashcards for computer networks,CREATE_FLASHCARDS
+is this graph correct,VISUALIZATION_IMPROVEMENT
+find the derivative of e^x,DIFFERENTIATE_FUNCTION
+spot the flaw in my algebra,FIND_ERROR
+can this graph traversal be optimized,OPTIMIZE_CODE
+is my reasoning correct for this algorithm,VERIFY_REASONING
+devise an algorithm for finding the shortest path,ALGORITHM_DESIGN
+analyze whether this theorem proof is correct,VERIFY_REASONING
+how is angular momentum used in real life applications,REAL_WORLD_APPLICATION
+fact-check this: light travels faster than sound,FACT_CHECK
+factor the expression x^3 - 8,FACTOR_EXPRESSION
+compute the force on a 5 kg mass accelerating at 2 m/s^2,SOLVE_NUMERICAL
+what do this ROC curve tell me,RESULT_INTERPRETATION
+analyze this time series,DATA_ANALYSIS
+make quiz questions for CUDA,CREATE_QUIZ
+what is the period of a 1 m pendulum,SOLVE_NUMERICAL
+test my understanding of compiler design,CREATE_QUIZ
+what trends are in this dataset,DATA_ANALYSIS
+Compare RSA and Kyber.,COMPARE_METHODS
+determine the frequency response,SIGNAL_ANALYSIS
+give practical applications of complex numbers,REAL_WORLD_APPLICATION
+improve this plot,VISUALIZATION_IMPROVEMENT
+give a proof of the binomial theorem,PROVE_THEOREM
+make a revision sheet for cryptography,SUMMARIZE_NOTES
+reduce x^3 - 3x to simplest form,SIMPLIFY_EXPRESSION
+find the complexity of this merge sort,FIND_COMPLEXITY
+explain how this merge sort works,EXPLAIN_CODE
+plot y = x^2,GRAPH_FUNCTION
+factor the expression 2x^2 + 7x + 3,FACTOR_EXPRESSION
+graph e^x,GRAPH_FUNCTION
+review the methodology section of my experiment,CRITIQUE_METHOD
+make practice problems about machine learning,GENERATE_PRACTICE_PROBLEMS
+is my chemistry answer correct,CHECK_ANSWER
+label the structure of the human eye,DRAW_LABELED_DIAGRAM
+generate exam-level challenges for digital logic,GENERATE_PRACTICE_PROBLEMS
+give me the intuition behind precision and recall,EXPLAIN_INTUITIVELY
+improve this figure for learning,VISUALIZATION_IMPROVEMENT
+give a proof of the fundamental theorem of calculus,PROVE_THEOREM
+factorize x^2 - 5x + 6,FACTOR_EXPRESSION
+diagram the workflow of DNA replication,DRAW_FLOWCHART
+prepare me for my OpenCL exam,EXAM_PREPARATION
+optimize my binary search function,OPTIMIZE_CODE
+Generate quantum-resistant alternatives.,RESEARCH_IDEA
+draw a labeled diagram of a BJT transistor,DRAW_LABELED_DIAGRAM
+visualize attention mechanisms intuitively,EXPLAIN_INTUITIVELY
+solve 1/(x^2 + 1) and explain each step,SOLVE_STEP_BY_STEP
+differentiate tan(x),DIFFERENTIATE_FUNCTION
+find an analogy to help me understand precision and recall,ANALOGY_GENERATION
+what does entropy represent physically,EXPLAIN_PHYSICAL_MEANING
+write code for ROS code for robot navigation,GENERATE_CODE
+is my this problem answer correct,CHECK_ANSWER
+simplify cos(x)/x,SIMPLIFY_EXPRESSION
+find the bug in this BFS implementation,DEBUG_CODE
+summarize digital logic,SUMMARIZE_NOTES
+improve the performance of this Python recursion code,OPTIMIZE_CODE
+summarize this research paper,SUMMARIZE_NOTES
+review the methodology section of this conference paper,CRITIQUE_METHOD
+write ROS code for robot navigation,GENERATE_CODE
+Compare BFS and DFS.,COMPARE_METHODS
+label the structure of the benzene ring,DRAW_LABELED_DIAGRAM
+show the steps of photosynthesis as a flowchart,DRAW_FLOWCHART
+simplify the expression x^2 - 9,SIMPLIFY_EXPRESSION
+ELI5 the photoelectric effect,ELI5_EXPLANATION
+design an efficient approach for detecting cycles in a graph,ALGORITHM_DESIGN
+Debug this Python recursion code.,DEBUG_CODE
+verify my answer for circuit,CHECK_ANSWER
+find the derivative of sin^2(x) and explain every step,SOLVE_STEP_BY_STEP
+verify the correctness of the parser,VERIFY_REASONING
+what does the curl of a field represent physically,EXPLAIN_PHYSICAL_MEANING
+Why did accuracy drop after normalization?,VERIFY_REASONING
+explain eigenvalues in the simplest terms,ELI5_EXPLANATION
+make a revision sheet for this thesis chapter,SUMMARIZE_NOTES
+critique the methodology of this conference paper,CRITIQUE_METHOD
+do an exploratory analysis of this dataset,DATA_ANALYSIS
+explain dynamic programming,EXPLAIN_CONCEPT
+why does this sorting function crash,DEBUG_CODE
+find the bug causing segmentation faults in my linked list code,DEBUG_CODE
+implement quicksort in Python,GENERATE_CODE
+fix the bug in this graph traversal,DEBUG_CODE
+Derive the kinematic equations.,DERIVE_EQUATION
+improve the performance of this merge sort,OPTIMIZE_CODE
+what's an open problem in NLP,RESEARCH_IDEA
+AES and ChaCha20: which is better,COMPARE_METHODS
+explain precision and recall like I'm a beginner,ELI5_EXPLANATION
+work through 1/(x^2 + 1) step by step,SOLVE_STEP_BY_STEP
+explain this dynamic programming solution,EXPLAIN_CODE
+"I got 12, check if my answer is correct",CHECK_MATH_SOLUTION
+show the parts of a four-stroke engine,DRAW_LABELED_DIAGRAM
+complete the implementation of this loop,COMPLETE_CODE
+make this graph better,VISUALIZATION_IMPROVEMENT
+improve the important points of this graph,VISUALIZATION_IMPROVEMENT
+condense this research paper into key points,SUMMARIZE_NOTES
+review my graph and suggest improvements,VISUALIZATION_IMPROVEMENT
+explain why my model predicting only one class,MODEL_EXPLANATION
+what does the wavefunction actually mean,EXPLAIN_PHYSICAL_MEANING
+can my linked list code be optimized,OPTIMIZE_CODE
+plot arctan(x),GRAPH_FUNCTION
+Make this plot clearer for students.,VISUALIZATION_IMPROVEMENT
+test my understanding of computer networks,CREATE_QUIZ
+Prove that sqrt(2) is irrational.,PROVE_THEOREM
+make a flowchart for DNA replication,DRAW_FLOWCHART
+what is the antiderivative of ln(x),INTEGRATE_FUNCTION
+explain this graph traversal,EXPLAIN_CODE
+draw and label a BJT transistor,DRAW_LABELED_DIAGRAM
+what's wrong with my force calculation,FIND_ERROR
+evaluate the experimental design of this study,CRITIQUE_METHOD
+write a binary search in C++,GENERATE_CODE
+turn machine learning into flashcards,CREATE_FLASHCARDS
+make this graph easier to read,VISUALIZATION_IMPROVEMENT
+turn cryptography into flashcards,CREATE_FLASHCARDS
+give me code for a binary search in C++,GENERATE_CODE
+optimize this SQL query for my binary search function,OPTIMIZE_CODE
+design a temperature regulation system,SYSTEM_DESIGN
+ELI5 quantum tunneling,ELI5_EXPLANATION
+write code for quicksort in Python,GENERATE_CODE
+improve the scaling of this graph,VISUALIZATION_IMPROVEMENT
+what's the time complexity of this merge sort,FIND_COMPLEXITY
+design a system for a home automation system,SYSTEM_DESIGN
+give an overview of the product rule,EXPLAIN_CONCEPT
+solve this RLC network,CIRCUIT_ANALYSIS
+make quiz questions for cryptography,CREATE_QUIZ
+help me select features for my model,FEATURE_SELECTION
+prove that Bayes theorem,PROVE_THEOREM
+check my answer for this problem,CHECK_ANSWER
+what's the intuitive idea behind limits,EXPLAIN_INTUITIVELY
+what is the space complexity of this dynamic programming solution,FIND_COMPLEXITY
+design an efficient approach for matching students to projects,ALGORITHM_DESIGN
+is humans use only 10% of their brain accurate,FACT_CHECK
+what's a good metaphor for special relativity,ANALOGY_GENERATION
+give practical applications of gradient descent,REAL_WORLD_APPLICATION
+summarize my notes on cryptography,SUMMARIZE_NOTES
+make quiz questions for computer networks,CREATE_QUIZ
+derive the formula for the sum of an arithmetic series,DERIVE_FORMULA
+determine the transfer function,SIGNAL_ANALYSIS
+summarize my notes on OpenCL,SUMMARIZE_NOTES
+fix the axes on this graph,VISUALIZATION_IMPROVEMENT
+help me build intuition for precision and recall,EXPLAIN_INTUITIVELY
+make flashcards on CUDA,CREATE_FLASHCARDS
+what are the key ideas of precision and recall,EXPLAIN_CONCEPT
+are the units consistent in the drag equation,UNIT_ANALYSIS
+which features should I remove from this dataset,FEATURE_SELECTION
+come up with an algorithm to route planning,ALGORITHM_DESIGN
+verify whether light travels faster than sound,FACT_CHECK
+devise an algorithm for load balancing,ALGORITHM_DESIGN
+how does Taylor series work,EXPLAIN_CONCEPT
+generate practice questions on cryptography,GENERATE_PRACTICE_PROBLEMS
+what trends are in this time series,DATA_ANALYSIS
+factor the expression x^2 - 9,FACTOR_EXPRESSION
+Prove Bayes theorem.,PROVE_THEOREM
+what are the weaknesses of this preprint,CRITIQUE_METHOD
+summarize database systems,SUMMARIZE_NOTES
+finish this this sorting function,COMPLETE_CODE
+summarize my notes on CUDA,SUMMARIZE_NOTES
+why did my model not converging,MODEL_EXPLANATION
+improve the performance of this sorting function,OPTIMIZE_CODE
+show the derivation of Maxwell's equations,DERIVE_EQUATION
+give me practice problems for operating systems,GENERATE_PRACTICE_PROBLEMS
+check my answer for the homework,CHECK_ANSWER
+implement ROS code for robot navigation,GENERATE_CODE
+what are real-world applications of the central limit theorem,REAL_WORLD_APPLICATION
+complete the missing function in this graph traversal,COMPLETE_CODE
+explain regularization like I'm a beginner,ELI5_EXPLANATION
+reduce sin^2(x) + cos^2(x) to simplest form,SIMPLIFY_EXPRESSION
+simplify the expression (x^2 - 1)/(x - 1),SIMPLIFY_EXPRESSION
+give me exam tips for CUDA,EXAM_PREPARATION
+show the derivation of the kinematic equations,DERIVE_EQUATION
+contrast SN1 and SN2 reactions,COMPARE_METHODS
+contrast SGD and Adam,COMPARE_METHODS
+Explain gradient descent intuitively.,EXPLAIN_INTUITIVELY
+analyze the statistical significance in this dataset,DATA_ANALYSIS
+find the mistake in my force calculation,FIND_ERROR
+Suggest improvements to model performance.,MODEL_EXPLANATION
+find the frequency response,SIGNAL_ANALYSIS
+analyze these survey results,DATA_ANALYSIS
+compare SGD and Adam,COMPARE_METHODS
+give me an analogy for blockchain consensus,ANALOGY_GENERATION
+what's wrong with my proof attempt,FIND_ERROR
+complete the implementation of this class,COMPLETE_CODE
+explain wave-particle duality like I'm a beginner,ELI5_EXPLANATION
+review the methodology section of this thesis chapter,CRITIQUE_METHOD
+review this graph for axes,VISUALIZATION_IMPROVEMENT
+reduce 3x^2 + 2x - 5 to simplest form,SIMPLIFY_EXPRESSION
+Analyze statistical significance.,DATA_ANALYSIS
+check dimensional consistency of F = ma,UNIT_ANALYSIS
+generate quantum-resistant alternatives for NLP,RESEARCH_IDEA
+what is the antiderivative of sec^2(x),INTEGRATE_FUNCTION
+flowchart the process of Dijkstra's algorithm,DRAW_FLOWCHART
+generate viva questions for machine learning,CREATE_QUIZ
+help me interpret these confidence intervals,RESULT_INTERPRETATION
+generate digital logic interview questions,CREATE_QUIZ
+find the error in my matrix multiplication,FIND_ERROR
+determine the period of a 1 m pendulum,SOLVE_NUMERICAL
+differentiate y = -x^2 + 4,DIFFERENTIATE_FUNCTION
+verify the correctness of this induction proof,VERIFY_REASONING
+write a REST API in Flask,GENERATE_CODE
+simplify 2x^2 - 8,SIMPLIFY_EXPRESSION
+debug my linked list code,DEBUG_CODE
+compute the integral of sin^2(x),INTEGRATE_FUNCTION
+visualize the steps of binary search on my canvas,DRAW_FLOWCHART
+Factor x^2-9.,FACTOR_EXPRESSION
+find the velocity after 5 seconds under gravity,SOLVE_NUMERICAL
+fill in the rest of this merge sort,COMPLETE_CODE
+what are real-world applications of quantum tunneling,REAL_WORLD_APPLICATION
+solve 3x^2 + 2x - 5 step by step,SOLVE_STEP_BY_STEP
+Explain post-quantum cryptography.,EXPLAIN_CONCEPT
+critique the methodology of my experiment,CRITIQUE_METHOD
+explain how this Python recursion code works,EXPLAIN_CODE
+tell me about dropout,EXPLAIN_CONCEPT
+determine the kinetic energy of a 2 kg ball at 3 m/s,SOLVE_NUMERICAL
+how would you design a temperature regulation system,SYSTEM_DESIGN
+Can this algorithm be optimized?,OPTIMIZE_CODE
+walk me through my binary search function,EXPLAIN_CODE
+Generate related work.,LITERATURE_REVIEW
+prepare me for my compiler design exam,EXAM_PREPARATION
+work through x^2 - 9 step by step,SOLVE_STEP_BY_STEP
+derive the formula for the area of a circle,DERIVE_FORMULA
+analyze whether my argument is correct,VERIFY_REASONING
+critique the methodology of this journal article,CRITIQUE_METHOD
+generate flashcards for OpenCL,CREATE_FLASHCARDS
+I got x=4 for this equation. Check if my answer is correct.,CHECK_MATH_SOLUTION
+explain the physical meaning of entropy,EXPLAIN_PHYSICAL_MEANING
+Interpret p-values.,RESULT_INTERPRETATION
+make a flowchart for bubble sort,DRAW_FLOWCHART
+Compare AES and ChaCha20.,COMPARE_METHODS
+what do these confidence intervals tell me,RESULT_INTERPRETATION
+compute the integral of x^2 cos(x),INTEGRATE_FUNCTION
+identify research gaps in machine learning,RESEARCH_IDEA
+generate a logistic regression in Python,GENERATE_CODE
+help me interpret these confusion matrix results,RESULT_INTERPRETATION
+what's a good metaphor for the chain rule,ANALOGY_GENERATION
+find the force on a 5 kg mass accelerating at 2 m/s^2,SOLVE_NUMERICAL
+help me build intuition for eigenvalues,EXPLAIN_INTUITIVELY
+show the derivation of the area of a circle,DERIVE_FORMULA
+compute d/dx of x^2 e^-x,DIFFERENTIATE_FUNCTION
+complete the implementation of this BFS implementation,COMPLETE_CODE
+find the Fourier transform of this signal,SIGNAL_ANALYSIS
+explain post-quantum cryptography in the simplest terms,ELI5_EXPLANATION
+find the voltage across this RLC network,CIRCUIT_ANALYSIS
+design an efficient approach for finding the shortest path,ALGORITHM_DESIGN
+condense chapter 5 into key points,SUMMARIZE_NOTES
+contrast this research paper with the related paper,COMPARE_PAPERS
+generate a binary search in C++,GENERATE_CODE
+"I solved it and got x = 4, is that right",CHECK_MATH_SOLUTION
+what does the curl of a field actually mean,EXPLAIN_PHYSICAL_MEANING
+help me build intuition for complex numbers,EXPLAIN_INTUITIVELY
+give me practice problems for OpenCL,GENERATE_PRACTICE_PROBLEMS
+make flashcards on machine learning,CREATE_FLASHCARDS
+show where my integration went wrong,FIND_ERROR
+diagram the workflow of the water cycle,DRAW_FLOWCHART
+sketch x^3 - 3x,GRAPH_FUNCTION
+verify my answer 12,CHECK_MATH_SOLUTION
+check my circuit calculations,CHECK_ANSWER
+work through (x^2 - 4)/(x - 2) step by step,SOLVE_STEP_BY_STEP

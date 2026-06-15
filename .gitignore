@@ -9,3 +9,5 @@ backend/.env
 .vscode
 .DS_Store
 Thumbs.db
+ml/__pycache__/
+ml/intent_distilbert_checkpoints/

@@ -1,12 +1,9 @@
 """
-Train the Prompt Intent Classifier.
+Train the TF-IDF + Logistic Regression intent baseline (for report comparison).
 
-A TF-IDF + Logistic Regression text model that reads a student's request and
-predicts what the app should do:
-  flowchart | graph | labeled_diagram | none
+Production intent routing uses fine-tuned DistilBERT — see train_intent_distilbert.py.
 
-This trained model REPLACES the hand-written keyword heuristic that used to
-decide diagram type in backend/main.py (_resolve_visual_type).
+This baseline reads a student's request and predicts one of 49 STEM intents.
 
 Run intent_dataset.py first to create datasets/intent/intent_prompts.csv.
 

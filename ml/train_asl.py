@@ -1,6 +1,8 @@
 """
 Train ASL fingerspelling classifier (A-Z) with MobileNetV2 transfer learning.
 
+For a custom CNN trained from scratch, use train_asl_cnn.py instead.
+
 Expected dataset layout (any one works):
   .../train/A/, train/B/, ...           (+ optional valid/, test/)
   .../train/*.jpg + _annotations.coco.json   (Roboflow export — your download)
@@ -320,7 +322,10 @@ def main() -> None:
     cm = confusion_matrix(y_true, y_pred)
 
     MODEL_OUT.parent.mkdir(parents=True, exist_ok=True)
-    torch.save({"state_dict": model.state_dict(), "num_classes": len(classes)}, MODEL_OUT)
+    torch.save(
+        {"state_dict": model.state_dict(), "num_classes": len(classes), "arch": "mobilenet_v2", "image_size": 224},
+        MODEL_OUT,
+    )
     LABELS_OUT.write_text(json.dumps(classes, indent=2), encoding="utf-8")
 
     metrics = {

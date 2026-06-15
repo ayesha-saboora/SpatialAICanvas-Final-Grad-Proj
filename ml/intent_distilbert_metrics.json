@@ -1,0 +1,369 @@
+{
+  "model": "distilbert-base-uncased",
+  "classes": [
+    "ALGORITHM_DESIGN",
+    "ANALOGY_GENERATION",
+    "CHECK_ANSWER",
+    "CHECK_MATH_SOLUTION",
+    "CIRCUIT_ANALYSIS",
+    "COMPARE_METHODS",
+    "COMPARE_PAPERS",
+    "COMPLETE_CODE",
+    "CREATE_FLASHCARDS",
+    "CREATE_QUIZ",
+    "CRITIQUE_METHOD",
+    "DATA_ANALYSIS",
+    "DEBUG_CODE",
+    "DERIVE_EQUATION",
+    "DERIVE_FORMULA",
+    "DIFFERENTIATE_FUNCTION",
+    "DRAW_FLOWCHART",
+    "DRAW_LABELED_DIAGRAM",
+    "ELI5_EXPLANATION",
+    "EXAM_PREPARATION",
+    "EXPLAIN_CODE",
+    "EXPLAIN_CONCEPT",
+    "EXPLAIN_INTUITIVELY",
+    "EXPLAIN_PHYSICAL_MEANING",
+    "FACTOR_EXPRESSION",
+    "FACT_CHECK",
+    "FEATURE_SELECTION",
+    "FIND_COMPLEXITY",
+    "FIND_ERROR",
+    "GENERATE_CODE",
+    "GENERATE_PRACTICE_PROBLEMS",
+    "GRAPH_FUNCTION",
+    "INTEGRATE_FUNCTION",
+    "LITERATURE_REVIEW",
+    "MODEL_EXPLANATION",
+    "OPTIMIZE_CODE",
+    "PROVE_THEOREM",
+    "REAL_WORLD_APPLICATION",
+    "RESEARCH_IDEA",
+    "RESULT_INTERPRETATION",
+    "SIGNAL_ANALYSIS",
+    "SIMPLIFY_EXPRESSION",
+    "SOLVE_NUMERICAL",
+    "SOLVE_STEP_BY_STEP",
+    "SUMMARIZE_NOTES",
+    "SYSTEM_DESIGN",
+    "UNIT_ANALYSIS",
+    "VERIFY_REASONING",
+    "VISUALIZATION_IMPROVEMENT"
+  ],
+  "train_size": 1303,
+  "test_size": 326,
+  "test_accuracy": 0.911042944785276,
+  "eval_accuracy": 0.911042944785276,
+  "device": "cpu",
+  "epochs": 4,
+  "classification_report": {
+    "ALGORITHM_DESIGN": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 5.0
+    },
+    "ANALOGY_GENERATION": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 7.0
+    },
+    "CHECK_ANSWER": {
+      "precision": 1.0,
+      "recall": 0.8,
+      "f1-score": 0.8888888888888888,
+      "support": 5.0
+    },
+    "CHECK_MATH_SOLUTION": {
+      "precision": 0.8571428571428571,
+      "recall": 1.0,
+      "f1-score": 0.9230769230769231,
+      "support": 6.0
+    },
+    "CIRCUIT_ANALYSIS": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 5.0
+    },
+    "COMPARE_METHODS": {
+      "precision": 0.75,
+      "recall": 1.0,
+      "f1-score": 0.8571428571428571,
+      "support": 9.0
+    },
+    "COMPARE_PAPERS": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 2.0
+    },
+    "COMPLETE_CODE": {
+      "precision": 0.7,
+      "recall": 1.0,
+      "f1-score": 0.8235294117647058,
+      "support": 7.0
+    },
+    "CREATE_FLASHCARDS": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 7.0
+    },
+    "CREATE_QUIZ": {
+      "precision": 0.6666666666666666,
+      "recall": 1.0,
+      "f1-score": 0.8,
+      "support": 8.0
+    },
+    "CRITIQUE_METHOD": {
+      "precision": 0.8,
+      "recall": 1.0,
+      "f1-score": 0.8888888888888888,
+      "support": 8.0
+    },
+    "DATA_ANALYSIS": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 5.0
+    },
+    "DEBUG_CODE": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 8.0
+    },
+    "DERIVE_EQUATION": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 5.0
+    },
+    "DERIVE_FORMULA": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 6.0
+    },
+    "DIFFERENTIATE_FUNCTION": {
+      "precision": 0.5,
+      "recall": 0.42857142857142855,
+      "f1-score": 0.46153846153846156,
+      "support": 7.0
+    },
+    "DRAW_FLOWCHART": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 7.0
+    },
+    "DRAW_LABELED_DIAGRAM": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 7.0
+    },
+    "ELI5_EXPLANATION": {
+      "precision": 1.0,
+      "recall": 0.5714285714285714,
+      "f1-score": 0.7272727272727273,
+      "support": 7.0
+    },
+    "EXAM_PREPARATION": {
+      "precision": 1.0,
+      "recall": 0.5,
+      "f1-score": 0.6666666666666666,
+      "support": 8.0
+    },
+    "EXPLAIN_CODE": {
+      "precision": 1.0,
+      "recall": 0.42857142857142855,
+      "f1-score": 0.6,
+      "support": 7.0
+    },
+    "EXPLAIN_CONCEPT": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 10.0
+    },
+    "EXPLAIN_INTUITIVELY": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 8.0
+    },
+    "EXPLAIN_PHYSICAL_MEANING": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 7.0
+    },
+    "FACTOR_EXPRESSION": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 5.0
+    },
+    "FACT_CHECK": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 4.0
+    },
+    "FEATURE_SELECTION": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 6.0
+    },
+    "FIND_COMPLEXITY": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 7.0
+    },
+    "FIND_ERROR": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 8.0
+    },
+    "GENERATE_CODE": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 8.0
+    },
+    "GENERATE_PRACTICE_PROBLEMS": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 8.0
+    },
+    "GRAPH_FUNCTION": {
+      "precision": 0.5833333333333334,
+      "recall": 1.0,
+      "f1-score": 0.7368421052631579,
+      "support": 7.0
+    },
+    "INTEGRATE_FUNCTION": {
+      "precision": 1.0,
+      "recall": 0.3333333333333333,
+      "f1-score": 0.5,
+      "support": 6.0
+    },
+    "LITERATURE_REVIEW": {
+      "precision": 1.0,
+      "recall": 0.4,
+      "f1-score": 0.5714285714285714,
+      "support": 5.0
+    },
+    "MODEL_EXPLANATION": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 4.0
+    },
+    "OPTIMIZE_CODE": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 8.0
+    },
+    "PROVE_THEOREM": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 6.0
+    },
+    "REAL_WORLD_APPLICATION": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 7.0
+    },
+    "RESEARCH_IDEA": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 7.0
+    },
+    "RESULT_INTERPRETATION": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 8.0
+    },
+    "SIGNAL_ANALYSIS": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 4.0
+    },
+    "SIMPLIFY_EXPRESSION": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 7.0
+    },
+    "SOLVE_NUMERICAL": {
+      "precision": 0.6666666666666666,
+      "recall": 1.0,
+      "f1-score": 0.8,
+      "support": 8.0
+    },
+    "SOLVE_STEP_BY_STEP": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 8.0
+    },
+    "SUMMARIZE_NOTES": {
+      "precision": 0.6666666666666666,
+      "recall": 1.0,
+      "f1-score": 0.8,
+      "support": 8.0
+    },
+    "SYSTEM_DESIGN": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 5.0
+    },
+    "UNIT_ANALYSIS": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 6.0
+    },
+    "VERIFY_REASONING": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 6.0
+    },
+    "VISUALIZATION_IMPROVEMENT": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 9.0
+    },
+    "accuracy": 0.911042944785276,
+    "macro avg": {
+      "precision": 0.901846452866861,
+      "recall": 0.886977648202138,
+      "f1-score": 0.8784750102435069,
+      "support": 326.0
+    },
+    "weighted avg": {
+      "precision": 0.9164913818288051,
+      "recall": 0.911042944785276,
+      "f1-score": 0.8976780918394244,
+      "support": 326.0
+    }
+  }
+}

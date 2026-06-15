@@ -313,7 +313,7 @@ const MAIN_FEATURES = [
   { icon: '🎙️', title: 'Voice Input', desc: 'Speak your question hands-free — transcribed and sent to the AI automatically.', tag: 'Access' },
   { icon: '📄', title: 'Document Upload', desc: 'Drop PDFs, slides, and images onto the canvas and annotate them in one place.', tag: 'Core' },
   { icon: '📊', title: 'STEM Graphs', desc: 'Flowcharts, labeled diagrams, and Desmos-style math graphs drawn live on your workspace.', tag: 'Visual' },
-  { icon: '🧠', title: 'Intent Classifier', desc: 'Our custom 49-class ML model routes every prompt to the right visual in milliseconds.', tag: 'ML' },
+  { icon: '🧠', title: 'Intent Classifier', desc: 'Fine-tuned DistilBERT on a custom 49-class STEM dataset routes every prompt to the right action.', tag: 'ML' },
 ]
 
 const SELL_ACCESS = [
@@ -324,9 +324,9 @@ const SELL_ACCESS = [
 
 const SELL_ML = [
   { value: '49', label: 'STEM intent classes' },
-  { value: '98.8%', label: 'Routing accuracy' },
+  { value: '91.1%', label: 'DistilBERT routing accuracy' },
   { value: 'A–Z', label: 'ASL letters trained' },
-  { value: '<50ms', label: 'Model response' },
+  { value: '~60ms', label: 'Intent routing' },
 ]
 
 export default function App() {
@@ -349,7 +349,7 @@ export default function App() {
   const [activeGroup, setActiveGroup] = useState<string | null>(null)
   const [isDraggingFile, setIsDraggingFile] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
-  const [intentInfo, setIntentInfo] = useState<{ intent: string; confidence: number } | null>(null)
+  const [intentInfo, setIntentInfo] = useState<{ intent: string; confidence: number; backend?: string } | null>(null)
   const [signOpen, setSignOpen] = useState(false)
   const [mathRecognizing, setMathRecognizing] = useState(false)
   const [signMode, setSignMode] = useState<SignAccessMode>('shortcut')
@@ -769,7 +769,7 @@ export default function App() {
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data?.available && data.intent) {
-          setIntentInfo({ intent: data.intent, confidence: data.confidence })
+          setIntentInfo({ intent: data.intent, confidence: data.confidence, backend: data.backend })
         }
       })
       .catch(() => {})
@@ -1546,9 +1546,17 @@ export default function App() {
             {aiError && <p className="ai-popup-error">{aiError}</p>}
           </div>
           {intentInfo && (
-            <div className="ai-intent-badge" title="Predicted by our trained Prompt Intent model (48-class taxonomy)">
+            <div
+              className="ai-intent-badge"
+              title={
+                intentInfo.backend === 'distilbert'
+                  ? 'Predicted by fine-tuned DistilBERT (49-class STEM intent model)'
+                  : 'Predicted by TF-IDF intent classifier (49-class STEM taxonomy)'
+              }
+            >
               <span className="ai-intent-dot" />
-              Intent: <strong>{intentInfo.intent.replace(/_/g, ' ').toLowerCase()}</strong>
+              {intentInfo.backend === 'distilbert' ? 'DistilBERT' : 'Intent'}:{' '}
+              <strong>{intentInfo.intent.replace(/_/g, ' ').toLowerCase()}</strong>
               <span className="ai-intent-conf">{Math.round(intentInfo.confidence * 100)}%</span>
             </div>
           )}

@@ -382,8 +382,8 @@ VISUAL_INTENT_MIN_CONF = 0.30  # visual intents have distinctive phrasing, lower
 def _resolve_visual_type(payload: ExplainRequest, question: str) -> str | None:
     """Return flowchart | graph | labeled_diagram when user wants a visual.
 
-    Primary path: the trained Prompt Intent Classifier (48-class taxonomy).
-    Falls back to the legacy keyword heuristic if the model is unsure/unavailable.
+    Primary path: the trained DistilBERT Prompt Intent Classifier (49-class taxonomy).
+    Falls back to TF-IDF baseline if DistilBERT weights are missing, then keywords.
     """
     if payload.generate_visual and payload.visual_type in ("flowchart", "graph", "labeled_diagram"):
         return payload.visual_type
@@ -1482,6 +1482,7 @@ class IntentRequest(BaseModel):
 
 class IntentResponse(BaseModel):
     available: bool
+    backend: str | None = None  # distilbert | tfidf
     intent: str | None
     confidence: float
     scores: dict[str, float]

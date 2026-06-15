@@ -10,7 +10,7 @@ import torch
 from PIL import Image
 from torchvision import transforms
 
-from asl_model import ARCH_ASL_CNN, ARCH_MOBILENET, build_asl_model
+from asl_model import ARCH_CNN3, ARCH_MOBILENET, build_asl_model
 
 MODEL_DIR = Path(__file__).resolve().parent / "models"
 MODEL_PATH = MODEL_DIR / "asl_model.pth"
@@ -27,7 +27,7 @@ _device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def _eval_transform(image_size: int, arch: str):
-    norm = CNN_NORM if arch == ARCH_ASL_CNN else IMAGENET_NORM
+    norm = CNN_NORM if arch == ARCH_CNN3 else IMAGENET_NORM
     return transforms.Compose(
         [
             transforms.Resize((image_size, image_size)),
@@ -44,7 +44,7 @@ def _load_model() -> tuple[torch.nn.Module, list[str], str, int]:
 
     if not MODEL_PATH.is_file():
         raise FileNotFoundError(
-            f"ASL model not found at {MODEL_PATH}. Run ml/train_asl_cnn.py or ml/train_asl.py first."
+            f"ASL model not found at {MODEL_PATH}. Run ml/train_asl_custom3.py or ml/train_asl.py first."
         )
     if not LABELS_PATH.is_file():
         raise FileNotFoundError(f"Label file not found at {LABELS_PATH}.")
@@ -53,7 +53,7 @@ def _load_model() -> tuple[torch.nn.Module, list[str], str, int]:
     labels = json.loads(LABELS_PATH.read_text(encoding="utf-8"))
     num_classes = int(checkpoint.get("num_classes", len(labels)))
     arch = str(checkpoint.get("arch", ARCH_MOBILENET))
-    image_size = int(checkpoint.get("image_size", 224 if arch == ARCH_MOBILENET else 128))
+    image_size = int(checkpoint.get("image_size", 224 if arch == ARCH_MOBILENET else 96))
 
     model = build_asl_model(arch, num_classes)
     model.load_state_dict(checkpoint["state_dict"])

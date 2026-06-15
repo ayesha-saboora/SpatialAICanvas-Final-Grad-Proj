@@ -1,7 +1,7 @@
 """
 Train ASL fingerspelling classifier (A-Z) with MobileNetV2 transfer learning.
 
-For a custom CNN trained from scratch, use train_asl_cnn.py instead.
+For a custom CNN trained from scratch, use train_asl_custom3.py instead.
 
 Expected dataset layout (any one works):
   .../train/A/, train/B/, ...           (+ optional valid/, test/)

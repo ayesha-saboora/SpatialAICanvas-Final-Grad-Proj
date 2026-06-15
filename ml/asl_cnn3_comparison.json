@@ -1,0 +1,7 @@
+{
+  "AslCNN3_eval_accuracy": 0.754527,
+  "AslCNN3_best_val_accuracy": 0.698752,
+  "MobileNetV2_eval_accuracy": 0.1111111111111111,
+  "AslLetterCNN_4block_eval_accuracy": 0.06944444444444445,
+  "note": "AslCNN3 is trained from scratch with 3 conv layers, BatchNorm, and Dropout. MobileNetV2 uses ImageNet pretrained weights (transfer learning). This comparison demonstrates the accuracy\u2013complexity tradeoff between a purpose-built lightweight CNN and a heavyweight pretrained backbone."
+}

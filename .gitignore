@@ -11,12 +11,3 @@ backend/.env
 Thumbs.db
 ml/__pycache__/
 ml/intent_distilbert_checkpoints/
-
-# Datasets — too large for GitHub, kept local
-datasets/
-American Sign Language Letters/
-
-# Trained model weights — too large for GitHub, kept local
-backend/models/
-*.pth
-*.joblib

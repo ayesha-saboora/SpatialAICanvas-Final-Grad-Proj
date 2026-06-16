@@ -110,7 +110,7 @@ function physicalCameras(cams: MediaDeviceInfo[]): MediaDeviceInfo[] {
 }
 
 function preferredCameraId(cams: MediaDeviceInfo[]): string {
-  const physical = physicalCameras(cams)
+  const physical = physicalCameras(cams).filter((c) => !/ir camera|infrared/i.test(c.label))
   const integrated = physical.find((c) =>
     /integrated|webcam|hd user facing|facetime|hp hd|acer|asus|dell|camera.*5986/i.test(c.label),
   )
@@ -118,10 +118,39 @@ function preferredCameraId(cams: MediaDeviceInfo[]): string {
   return physical[0]?.deviceId ?? ''
 }
 
+function resolveCameraId(
+  physical: MediaDeviceInfo[],
+  deviceOverride: string | undefined,
+  storedId: string,
+): string {
+  if (deviceOverride && physical.some((c) => c.deviceId === deviceOverride)) return deviceOverride
+  if (storedId && physical.some((c) => c.deviceId === storedId)) return storedId
+  return preferredCameraId(physical) || physical[0]?.deviceId || ''
+}
+
 function shortCameraLabel(label: string, index: number): string {
   if (!label) return `Camera ${index + 1}`
   const trimmed = label.replace(/\s*\([0-9a-f:]+\)\s*$/i, '').trim()
   return trimmed.length > 28 ? `${trimmed.slice(0, 26)}…` : trimmed
+}
+
+function cameraErrorMessage(err: unknown): string {
+  const name = err instanceof DOMException ? err.name : ''
+  const msg = err instanceof Error ? err.message : String(err)
+  if (name === 'NotAllowedError' || /permission/i.test(msg)) {
+    return 'Camera permission denied — click the lock icon in the address bar, allow Camera, then Retry.'
+  }
+  if (name === 'NotFoundError' || /not found/i.test(msg)) {
+    return 'No camera found on this device.'
+  }
+  if (name === 'NotReadableError' || /in use|busy|allocate/i.test(msg)) {
+    return 'Camera is in use by another app — close Teams, Zoom, or Camera app, then Retry.'
+  }
+  return msg || 'Could not start video source'
+}
+
+function hasMediaDevices(): boolean {
+  return typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
@@ -134,26 +163,19 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
 }
 
 function buildCameraAttempts(deviceId: string, cams: MediaDeviceInfo[]): MediaStreamConstraints[] {
-  const physical = physicalCameras(cams)
-  const selected = physical.find((c) => c.deviceId === deviceId)
-  const orderedIds = selected
+  const physical = physicalCameras(cams).filter((c) => !/ir camera|infrared/i.test(c.label))
+  const orderedIds = deviceId && physical.some((c) => c.deviceId === deviceId)
     ? [deviceId, ...physical.map((c) => c.deviceId).filter((id) => id !== deviceId)]
     : physical.map((c) => c.deviceId)
 
-  const attempts: MediaStreamConstraints[] = []
-  for (const id of orderedIds) {
-    if (!id) continue
-    attempts.push({
-      video: { deviceId: { ideal: id }, width: { ideal: 1280 }, height: { ideal: 720 } },
-      audio: false,
-    })
-    attempts.push({ video: { deviceId: { exact: id } }, audio: false })
-  }
-  attempts.push(
-    { video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+  const attempts: MediaStreamConstraints[] = [
     { video: { facingMode: 'user' }, audio: false },
     { video: true, audio: false },
-  )
+  ]
+  for (const id of orderedIds) {
+    if (!id) continue
+    attempts.push({ video: { deviceId: { ideal: id } }, audio: false })
+  }
   return attempts
 }
 
@@ -194,34 +216,14 @@ export function SignAccessibilityPanel({
     setCameraOn(false)
   }, [])
 
-  const refreshDevices = useCallback(async (): Promise<MediaDeviceInfo[]> => {
-    try {
-      try {
-        const probe = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user' },
-          audio: false,
-        })
-        probe.getTracks().forEach((t) => t.stop())
-      } catch {
-        /* permission denied */
-      }
-
-      const devices = await navigator.mediaDevices.enumerateDevices()
-      const cams = devices.filter((d) => d.kind === 'videoinput')
-      const physical = physicalCameras(cams)
-      setVideoDevices(physical.length ? physical : cams)
-
-      const list = physical.length ? physical : cams
-      setSelectedDeviceId((prev) => {
-        const current = list.find((c) => c.deviceId === prev)
-        if (current && !isVirtualCamera(current.label)) return prev
-        return preferredCameraId(list) || list[0]?.deviceId || ''
-      })
-      return list
-    } catch {
-      setVideoDevices([])
-      return []
-    }
+  const listVideoDevices = useCallback(async (): Promise<MediaDeviceInfo[]> => {
+    if (!navigator.mediaDevices?.enumerateDevices) return []
+    const devices = await navigator.mediaDevices.enumerateDevices()
+    const cams = devices.filter((d) => d.kind === 'videoinput')
+    const physical = physicalCameras(cams).filter((c) => !/ir camera|infrared/i.test(c.label))
+    const list = physical.length ? physical : physicalCameras(cams)
+    setVideoDevices(list)
+    return cams
   }, [])
 
   const startCamera = useCallback(async (deviceOverride?: string) => {
@@ -231,14 +233,23 @@ export function SignAccessibilityPanel({
     setStatus('Starting camera...')
     setCameraOn(false)
     stopCamera()
-    await new Promise((r) => window.setTimeout(r, 250))
+    await sleep(600)
 
     try {
-      const cams = await refreshDevices()
-      const deviceId = deviceOverride ?? selectedDeviceId
-      const attempts = buildCameraAttempts(deviceId, cams)
+      if (!hasMediaDevices()) {
+        setCameraError('Camera needs a secure page — open http://localhost:5173 (not an IP address).')
+        setStatus('')
+        return
+      }
+
+      let allCams = await listVideoDevices()
+      const physical = physicalCameras(allCams).filter((c) => !/ir camera|infrared/i.test(c.label))
+      const deviceId = resolveCameraId(physical, deviceOverride, selectedDeviceId)
+      setSelectedDeviceId(deviceId)
+      const attempts = buildCameraAttempts(deviceId, allCams)
 
       let lastErr = 'Could not start video source'
+      let permissionDenied = false
       for (const constraints of attempts) {
         try {
           const stream = await withTimeout(
@@ -269,24 +280,32 @@ export function SignAccessibilityPanel({
             video.muted = true
             await withTimeout(video.play(), 8000, 'Video play')
           }
+          allCams = await listVideoDevices()
           setCameraOn(true)
           setCameraError('')
           setStatus('Hold your sign in frame, then tap Capture sign.')
           return
         } catch (err) {
-          lastErr = err instanceof Error ? err.message : String(err)
+          if (err instanceof DOMException && err.name === 'NotAllowedError') permissionDenied = true
+          lastErr = cameraErrorMessage(err)
         }
       }
 
-      setCameraError(
-        `${lastErr}. Close Teams/OBS, pick your laptop camera above, then Retry — or Upload a photo.`,
-      )
+      if (permissionDenied) {
+        setCameraError(lastErr)
+      } else if (physicalCameras(allCams).length === 0 && allCams.length === 0) {
+        setCameraError(
+          'No camera detected. Check Windows Settings → Privacy → Camera (allow desktop apps), then Retry.',
+        )
+      } else {
+        setCameraError(`${lastErr} — or use Upload photo.`)
+      }
       setCameraOn(false)
       setStatus('')
     } finally {
       startingRef.current = false
     }
-  }, [refreshDevices, selectedDeviceId, stopCamera])
+  }, [listVideoDevices, selectedDeviceId, stopCamera])
 
   useEffect(() => {
     if (!open) {

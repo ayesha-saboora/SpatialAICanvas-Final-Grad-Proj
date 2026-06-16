@@ -1,7 +1,9 @@
 """
 Train handwritten math symbol classifier (digits + operators).
 
-Uses MNIST (0-9) plus synthetically generated operator/variable glyphs.
+Uses real handwritten samples from datasets/math_external (digits and
+most operators) plus a synthetic generator for symbols with no real
+samples available (currently just '*').
 Outputs:
   backend/models/math_model.pth
   backend/models/math_labels.json
@@ -14,8 +16,11 @@ from __future__ import annotations
 import argparse
 import json
 import random
-from io import BytesIO
+import sys
+import time
 from pathlib import Path
+
+sys.stdout.reconfigure(line_buffering=True)
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -23,8 +28,8 @@ import torch
 import torch.nn as nn
 from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
 from sklearn.metrics import classification_report, confusion_matrix
-from torch.utils.data import DataLoader, Dataset, Subset, WeightedRandomSampler
-from torchvision import datasets, transforms
+from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
+from torchvision import transforms
 
 ROOT = Path(__file__).resolve().parent.parent
 MODEL_OUT = ROOT / "backend" / "models" / "math_model.pth"
@@ -33,20 +38,28 @@ METRICS_OUT = Path(__file__).resolve().parent / "math_metrics.json"
 CM_OUT = Path(__file__).resolve().parent / "math_confusion_matrix.png"
 CACHE_DIR = ROOT / "datasets" / "math"
 SYNTH_DIR = CACHE_DIR / "synthetic"
+EXTERNAL_DIR = ROOT / "datasets" / "math_external" / "Handwritten math symbols dataset"
 
-# Digits from MNIST; operators/variables from synthetic generator.
-OPERATOR_SYMBOLS = ["+", "-", "*", "/", "=", "(", ")"]
 DIGIT_SYMBOLS = [str(i) for i in range(10)]
+OPERATOR_SYMBOLS = ["+", "-", "*", "/", "=", "(", ")"]
 SYMBOLS = DIGIT_SYMBOLS + OPERATOR_SYMBOLS
 
-SYMBOL_FOLDER: dict[str, str] = {
-    "+": "plus",
-    "-": "minus",
-    "*": "mul",
-    "/": "div",
-    "=": "eq",
-    "(": "lparen",
-    ")": "rparen",
+# Symbols with no usable real samples in EXTERNAL_DIR fall back to the
+# synthetic generator (currently just '*' - no multiplication-operator
+# class exists in the external dataset, only the 'x' variable letter).
+SYNTHETIC_SYMBOLS = ["*"]
+SYMBOL_FOLDER: dict[str, str] = {"*": "mul"}
+
+# Maps our symbol set to the external dataset's folder names. Digits and
+# most operators share the same name; '/' is stored as "forward_slash".
+EXTERNAL_FOLDER: dict[str, str] = {
+    **{d: d for d in DIGIT_SYMBOLS},
+    "+": "+",
+    "-": "-",
+    "(": "(",
+    ")": ")",
+    "=": "=",
+    "/": "forward_slash",
 }
 
 
@@ -56,7 +69,7 @@ def operator_dir(symbol: str) -> Path:
 
 def ensure_synthetic_cache(samples_per_operator: int) -> None:
     SYNTH_DIR.mkdir(parents=True, exist_ok=True)
-    for sym in OPERATOR_SYMBOLS:
+    for sym in SYNTHETIC_SYMBOLS:
         sym_dir = operator_dir(sym)
         sym_dir.mkdir(parents=True, exist_ok=True)
         existing = list(sym_dir.glob("*.png"))
@@ -68,22 +81,100 @@ def ensure_synthetic_cache(samples_per_operator: int) -> None:
             generate_synthetic_symbol(sym).save(sym_dir / f"{len(existing) + i:05d}.png")
 
 
-class OperatorFolderDataset(Dataset):
-    def __init__(self, symbol: str, label: int, transform, train: bool):
-        folder = operator_dir(symbol)
-        paths = sorted(folder.glob("*.png"))
-        split = int(len(paths) * 0.85)
-        self.paths = paths[:split] if train else paths[split:]
+class FolderDataset(Dataset):
+    """Loads raw (un-transformed) grayscale symbol images from a folder.
+
+    Returns (PIL.Image, label) pairs so callers can layer canvas-export
+    augmentation before the final tensor transform.
+    """
+
+    def __init__(
+        self,
+        folder: Path,
+        label: int,
+        train: bool,
+        thicken: bool = False,
+        split: float = 0.85,
+        max_total: int | None = None,
+    ):
+        paths = sorted(folder.glob("*.png")) + sorted(folder.glob("*.jpg"))
+        if max_total is not None and len(paths) > max_total:
+            paths = random.sample(paths, max_total)
+            paths.sort()
+        split_idx = int(len(paths) * split)
+        self.paths = paths[:split_idx] if train else paths[split_idx:]
         self.label = label
-        self.transform = transform
+        self.thicken = thicken
 
     def __len__(self) -> int:
         return len(self.paths)
 
     def __getitem__(self, idx: int):
-        img = Image.open(self.paths[idx]).convert("L")
-        img = img.filter(ImageFilter.MaxFilter(3))
-        return self.transform(img), self.label
+        path = self.paths[idx]
+        img = None
+        for attempt in range(5):
+            try:
+                img = Image.open(path).convert("L")
+                break
+            except (PermissionError, OSError):
+                if attempt == 4:
+                    break
+                time.sleep(0.5 * (attempt + 1))
+        if img is None:
+            # File is likely an OneDrive online-only placeholder that never
+            # synced down; skip it by substituting a neighboring sample
+            # instead of crashing the whole run.
+            return self.__getitem__((idx + 1) % len(self.paths))
+        if self.thicken:
+            img = img.filter(ImageFilter.MaxFilter(3))
+        return img, self.label
+
+    def labels(self) -> list[int]:
+        return [self.label] * len(self.paths)
+
+
+class TransformDataset(Dataset):
+    """Applies a torchvision transform to the PIL images of a base dataset."""
+
+    def __init__(self, base: Dataset, transform):
+        self.base = base
+        self.transform = transform
+
+    def __len__(self) -> int:
+        return len(self.base)
+
+    def __getitem__(self, idx: int):
+        img, label = self.base[idx]
+        return self.transform(img), label
+
+    def labels(self) -> list[int]:
+        return self.base.labels()
+
+
+class ConcatLabeledDataset(Dataset):
+    def __init__(self, parts: list[Dataset]):
+        self.parts = parts
+        self.offsets = []
+        off = 0
+        for part in parts:
+            self.offsets.append(off)
+            off += len(part)
+        self.total = off
+
+    def __len__(self) -> int:
+        return self.total
+
+    def __getitem__(self, idx: int):
+        for part, off in zip(self.parts, self.offsets):
+            if idx < off + len(part):
+                return part[idx - off]
+        raise IndexError(idx)
+
+    def labels(self) -> list[int]:
+        out: list[int] = []
+        for part in self.parts:
+            out.extend(part.labels())
+        return out
 
 
 class MathSymbolCNN(nn.Module):
@@ -177,20 +268,25 @@ def generate_synthetic_symbol(symbol: str, size: int = 64) -> Image.Image:
 
 
 def simulate_canvas_export(gray_img: Image.Image) -> Image.Image:
-    """On-the-fly augmentation mimicking tldraw pen exports at any size."""
+    """On-the-fly augmentation mimicking tldraw pen exports at varied sizes.
+
+    Kept mild relative to the original synthetic-only version: applied to
+    crisp 45x45 real symbol photos now, so overly aggressive scale/pad
+    ranges created a large train/test domain gap and unstable eval accuracy.
+    """
     if gray_img.mode != "L":
         gray_img = gray_img.convert("L")
-    scale = random.uniform(0.35, 2.8)
+    scale = random.uniform(0.7, 1.6)
     side = max(12, int(max(gray_img.size) * scale))
     img = gray_img.resize((side, side), Image.Resampling.LANCZOS)
-    for _ in range(random.randint(0, 2)):
+    if random.random() < 0.3:
         img = img.filter(ImageFilter.MaxFilter(3))
-    pad_side = int(max(img.size) * random.uniform(1.05, 1.8))
+    pad_side = int(max(img.size) * random.uniform(1.0, 1.25))
     img = ImageOps.pad(img, (pad_side, pad_side), color=255, centering=(0.5, 0.5))
     arr = np.array(img, dtype=np.float32)
     ink = arr < 240
     if ink.any():
-        arr[ink] = np.clip(arr[ink] * random.uniform(0.25, 1.0), 0, 235)
+        arr[ink] = np.clip(arr[ink] * random.uniform(0.6, 1.0), 0, 235)
     return Image.fromarray(arr.astype(np.uint8), mode="L")
 
 
@@ -216,56 +312,7 @@ class CanvasAugmentedDataset(Dataset):
         return [self.base[i][1] for i in range(len(self.base))]
 
 
-class CombinedMathDataset(Dataset):
-    def __init__(self, mnist_subset, synth_parts: list[OperatorFolderDataset]):
-        self.mnist = mnist_subset
-        self.synth_parts = synth_parts
-        self.synth_len = sum(len(d) for d in synth_parts)
-        self.synth_offsets = []
-        off = 0
-        for part in synth_parts:
-            self.synth_offsets.append(off)
-            off += len(part)
-
-    def __len__(self) -> int:
-        return len(self.mnist) + self.synth_len
-
-    def __getitem__(self, idx: int):
-        if idx < len(self.mnist):
-            return self.mnist[idx]
-        synth_idx = idx - len(self.mnist)
-        for part, off in zip(self.synth_parts, self.synth_offsets):
-            if synth_idx < off + len(part):
-                return part[synth_idx - off]
-        raise IndexError(idx)
-
-    def labels(self) -> list[int]:
-        out: list[int] = []
-        if isinstance(self.mnist, Subset):
-            base = self.mnist.dataset
-            for idx in self.mnist.indices:
-                out.append(int(base.targets[idx]))
-        else:
-            for idx in range(len(self.mnist)):
-                out.append(int(self.mnist.dataset.targets[idx]))
-        for part in self.synth_parts:
-            out.extend([part.label] * len(part))
-        return out
-
-
-def subsample_mnist(dataset, max_per_class: int) -> Subset:
-    targets = dataset.targets.tolist() if hasattr(dataset.targets, "tolist") else list(dataset.targets)
-    indices: list[int] = []
-    counts: dict[int, int] = {}
-    for i, label in enumerate(targets):
-        c = counts.get(int(label), 0)
-        if c < max_per_class:
-            indices.append(i)
-            counts[int(label)] = c + 1
-    return Subset(dataset, indices)
-
-
-def build_datasets(samples_per_operator: int = 400, mnist_per_digit: int = 250):
+def build_datasets(samples_per_operator: int = 800, max_per_class: int = 3000):
     ensure_synthetic_cache(samples_per_operator)
     train_tf = transforms.Compose(
         [
@@ -283,21 +330,23 @@ def build_datasets(samples_per_operator: int = 400, mnist_per_digit: int = 250):
         ]
     )
 
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    mnist_train_full = datasets.MNIST(str(CACHE_DIR), train=True, download=True, transform=train_tf)
-    mnist_test_full = datasets.MNIST(str(CACHE_DIR), train=False, download=True, transform=eval_tf)
-    mnist_train = subsample_mnist(mnist_train_full, mnist_per_digit)
-    mnist_test = subsample_mnist(mnist_test_full, max(80, mnist_per_digit // 4))
+    train_parts = []
+    test_parts = []
+    for label, sym in enumerate(SYMBOLS):
+        if sym in SYNTHETIC_SYMBOLS:
+            folder = operator_dir(sym)
+            train_base = FolderDataset(folder, label, train=True, thicken=True)
+            test_base = FolderDataset(folder, label, train=False, thicken=True)
+        else:
+            folder = EXTERNAL_DIR / EXTERNAL_FOLDER[sym]
+            train_base = FolderDataset(folder, label, train=True, split=0.9, max_total=max_per_class)
+            test_base = FolderDataset(folder, label, train=False, split=0.9, max_total=max_per_class)
 
-    synth_train_parts = []
-    synth_test_parts = []
-    for sym in OPERATOR_SYMBOLS:
-        label = SYMBOLS.index(sym)
-        synth_train_parts.append(OperatorFolderDataset(sym, label, train_tf, train=True))
-        synth_test_parts.append(OperatorFolderDataset(sym, label, eval_tf, train=False))
+        train_parts.append(TransformDataset(CanvasAugmentedDataset(train_base, train=True), train_tf))
+        test_parts.append(TransformDataset(test_base, eval_tf))
 
-    train_ds = CombinedMathDataset(mnist_train, synth_train_parts)
-    test_ds = CombinedMathDataset(mnist_test, synth_test_parts)
+    train_ds = ConcatLabeledDataset(train_parts)
+    test_ds = ConcatLabeledDataset(test_parts)
     return train_ds, test_ds
 
 
@@ -381,14 +430,14 @@ def main() -> None:
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--samples-per-operator", type=int, default=800)
-    parser.add_argument("--mnist-per-digit", type=int, default=400)
+    parser.add_argument("--max-per-class", type=int, default=3000)
     args = parser.parse_args()
 
     random.seed(42)
     np.random.seed(42)
     torch.manual_seed(42)
 
-    train_ds, test_ds = build_datasets(args.samples_per_operator, args.mnist_per_digit)
+    train_ds, test_ds = build_datasets(args.samples_per_operator, args.max_per_class)
     print(f"Classes ({len(SYMBOLS)}): {SYMBOLS}")
     print(f"Train size: {len(train_ds)}  Test size: {len(test_ds)}")
 
@@ -413,6 +462,13 @@ def main() -> None:
         if te_acc >= best_acc:
             best_acc = te_acc
             best_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
+            MODEL_OUT.parent.mkdir(parents=True, exist_ok=True)
+            torch.save({"state_dict": best_state, "num_classes": len(SYMBOLS)}, MODEL_OUT)
+            LABELS_OUT.write_text(json.dumps(SYMBOLS, indent=2), encoding="utf-8")
+            METRICS_OUT.write_text(
+                json.dumps({"symbols": SYMBOLS, "best_test_accuracy": best_acc, "history": history}, indent=2),
+                encoding="utf-8",
+            )
 
     if best_state:
         model.load_state_dict(best_state)

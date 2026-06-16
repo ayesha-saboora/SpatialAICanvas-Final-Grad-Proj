@@ -35,9 +35,17 @@ def recognize_expression_vision(image_bytes: bytes) -> str | None:
 
     b64 = base64.standard_b64encode(image_bytes).decode("ascii")
     prompt = (
-        "Read the handwritten math expression in this image. "
+        "Read the handwritten math expression in this image. It may contain several "
+        "digits, operators, and parentheses (e.g. 2+3-5= or (5-2)+10=). "
         "Reply with ONLY the expression using digits 0-9 and operators + - * / = ( ). "
-        "No spaces, no words, no explanation. Example: 22+1="
+        "Read every symbol left to right in order — do not skip, merge, or reorder any "
+        "of them, even if there are several operators or a parenthesized group. "
+        "Adjacent digits with no operator between them are one multi-digit number "
+        "(e.g. '1' next to '0' is 10, not 1 and 0 separately). "
+        "Look carefully at each operator stroke: '-' is a single short horizontal line, "
+        "'*' is two crossing diagonal strokes (an X shape), '+' is a horizontal line crossed "
+        "by a vertical line. Do not confuse '-' with '*' or '+'. "
+        "No spaces, no words, no explanation. Examples: 22+1=  2+3-5=  (5-2)+10="
     )
     try:
         resp = client.chat.completions.create(
@@ -54,11 +62,15 @@ def recognize_expression_vision(image_bytes: bytes) -> str | None:
             max_tokens=40,
             temperature=0,
         )
-    except Exception:
+    except Exception as e:
+        print(f"[math_vision] vision call failed: {e!r}")
         return None
 
     raw = (resp.choices[0].message.content or "").strip()
-    return _extract_expression(raw)
+    print(f"[math_vision] raw model output: {raw!r}")
+    extracted = _extract_expression(raw)
+    print(f"[math_vision] extracted expression: {extracted!r}")
+    return extracted
 
 
 def _extract_expression(raw: str) -> str | None:

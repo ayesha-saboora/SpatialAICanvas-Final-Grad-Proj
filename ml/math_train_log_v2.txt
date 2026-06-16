@@ -1,0 +1,48 @@
+Classes (17): ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '-', '*', '/', '=', '(', ')']
+Train size: 41617  Test size: 4691
+Device: cpu
+Epoch 1/20  train=0.198  test=0.314
+Epoch 2/20  train=0.264  test=0.432
+Epoch 3/20  train=0.318  test=0.293
+Epoch 4/20  train=0.346  test=0.305
+Epoch 5/20  train=0.380  test=0.257
+Epoch 6/20  train=0.402  test=0.503
+Epoch 7/20  train=0.418  test=0.355
+Epoch 8/20  train=0.440  test=0.272
+Epoch 9/20  train=0.452  test=0.534
+Epoch 10/20  train=0.462  test=0.490
+Epoch 11/20  train=0.476  test=0.207
+Epoch 12/20  train=0.488  test=0.479
+Epoch 13/20  train=0.495  test=0.462
+Traceback (most recent call last):
+  File "C:\Users\ayesh\OneDrive\Desktop\UNI\Sem 8\Final Graduation Proj\ml\train_math.py", line 469, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\ayesh\OneDrive\Desktop\UNI\Sem 8\Final Graduation Proj\ml\train_math.py", line 435, in main
+    tr_loss, tr_acc = run_epoch(model, train_loader, criterion, optimizer, device, train=True)
+                      ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ayesh\OneDrive\Desktop\UNI\Sem 8\Final Graduation Proj\ml\train_math.py", line 336, in run_epoch
+    for images, labels in loader:
+                          ^^^^^^
+  File "C:\Users\ayesh\AppData\Local\Programs\Python\Python313\Lib\site-packages\torch\utils\data\dataloader.py", line 718, in __next__
+    data = self._next_data()
+  File "C:\Users\ayesh\AppData\Local\Programs\Python\Python313\Lib\site-packages\torch\utils\data\dataloader.py", line 778, in _next_data
+    data = self._dataset_fetcher.fetch(index)  # may raise StopIteration
+  File "C:\Users\ayesh\AppData\Local\Programs\Python\Python313\Lib\site-packages\torch\utils\data\_utils\fetch.py", line 54, in fetch
+    data = [self.dataset[idx] for idx in possibly_batched_index]
+            ~~~~~~~~~~~~^^^^^
+  File "C:\Users\ayesh\OneDrive\Desktop\UNI\Sem 8\Final Graduation Proj\ml\train_math.py", line 152, in __getitem__
+    return part[idx - off]
+           ~~~~^^^^^^^^^^^
+  File "C:\Users\ayesh\OneDrive\Desktop\UNI\Sem 8\Final Graduation Proj\ml\train_math.py", line 129, in __getitem__
+    img, label = self.base[idx]
+                 ~~~~~~~~~^^^^^
+  File "C:\Users\ayesh\OneDrive\Desktop\UNI\Sem 8\Final Graduation Proj\ml\train_math.py", line 281, in __getitem__
+    img, label = self.base[idx]
+                 ~~~~~~~~~^^^^^
+  File "C:\Users\ayesh\OneDrive\Desktop\UNI\Sem 8\Final Graduation Proj\ml\train_math.py", line 109, in __getitem__
+    img = Image.open(self.paths[idx]).convert("L")
+          ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\ayesh\AppData\Local\Programs\Python\Python313\Lib\site-packages\PIL\Image.py", line 3635, in open
+    fp = builtins.open(filename, "rb")
+PermissionError: [Errno 13] Permission denied: 'C:\\Users\\ayesh\\OneDrive\\Desktop\\UNI\\Sem 8\\Final Graduation Proj\\datasets\\math_external\\Handwritten math symbols dataset\\9\\9_67552.jpg'

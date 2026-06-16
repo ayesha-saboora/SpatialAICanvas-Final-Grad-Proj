@@ -1,0 +1,21 @@
+Classes (17): ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '-', '*', '/', '=', '(', ')']
+Train size: 41617  Test size: 4691
+Device: cpu
+Epoch 1/15  train=0.301  test=0.265
+Epoch 2/15  train=0.434  test=0.287
+Epoch 3/15  train=0.499  test=0.297
+Epoch 4/15  train=0.549  test=0.504
+Epoch 5/15  train=0.584  test=0.209
+Epoch 6/15  train=0.611  test=0.463
+Epoch 7/15  train=0.628  test=0.469
+Epoch 8/15  train=0.643  test=0.382
+Epoch 9/15  train=0.656  test=0.562
+Epoch 10/15  train=0.670  test=0.462
+Epoch 11/15  train=0.676  test=0.472
+Epoch 12/15  train=0.687  test=0.401
+Epoch 13/15  train=0.695  test=0.486
+Epoch 14/15  train=0.694  test=0.603
+Epoch 15/15  train=0.702  test=0.560
+Best test accuracy: 0.6035
+Saved model -> C:\Users\ayesh\OneDrive\Desktop\UNI\Sem 8\Final Graduation Proj\backend\models\math_model.pth
+Saved labels -> C:\Users\ayesh\OneDrive\Desktop\UNI\Sem 8\Final Graduation Proj\backend\models\math_labels.json

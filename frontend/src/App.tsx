@@ -969,10 +969,14 @@ export default function App() {
     if (!editor || mathRecognizing) return
     setMathRecognizing(true)
     try {
-      const outcome = await recognizeDrawnMath(editor, predictMathExpression)
+      let outcome = await recognizeDrawnMath(editor, predictMathExpression)
+      let answer = outcome ? formatMathAnswer(outcome.result) : null
+      if (!answer) {
+        // Vision reads can be non-deterministic — one retry recovers most misreads.
+        outcome = await recognizeDrawnMath(editor, predictMathExpression)
+        answer = outcome ? formatMathAnswer(outcome.result) : null
+      }
       if (!outcome) return
-      const answer = formatMathAnswer(outcome.result)
-      if (!answer) return
       const editor2 = editorRef.current
       if (!editor2) return
       const bounds = clusterBounds(editor, outcome.shapeIds)
@@ -986,7 +990,11 @@ export default function App() {
           type: 'text',
           x: origin.x,
           y: origin.y,
-          props: { richText: toRichText(answer), size: 'xl', color: 'black' },
+          props: {
+            richText: toRichText(answer ?? "Couldn't read that — try writing larger and clearer"),
+            size: answer ? 'xl' : 'm',
+            color: answer ? 'black' : 'red',
+          },
         },
       ])
       zoomToShapes(editor2, [id])

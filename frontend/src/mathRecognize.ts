@@ -133,15 +133,17 @@ function pickExpressionCluster(editor: Editor, ids: TLShapeId[]): TLShapeId[] {
   const anchor = [...boxes].sort((a, b) => a.index.localeCompare(b.index)).pop()!
 
   // Ignore old equations elsewhere on the board — stay near the latest stroke.
-  const padX = Math.max(280, anchor.w * 10)
-  const padY = Math.max(70, anchor.h * 2)
+  // Wide enough for longer expressions like "(5-2)+10=" without dropping the
+  // leading/trailing symbols, which sit farther from the anchor stroke.
+  const padX = Math.max(600, anchor.w * 18)
+  const padY = Math.max(80, anchor.h * 2)
   const nearby = boxes.filter((b) => {
     return Math.abs(b.cx - anchor.cx) <= padX / 2 && Math.abs(b.cy - anchor.cy) <= padY / 2
   })
   const pool = nearby.length > 0 ? nearby : [anchor]
 
   const maxDy = Math.max(60, anchor.h * 1.5)
-  const maxGap = Math.max(70, anchor.w * 2.2)
+  const maxGap = Math.max(90, anchor.w * 2.5)
 
   const onLine = pool.filter((b) => {
     if (Math.abs(b.cy - anchor.cy) <= maxDy) return true
@@ -166,11 +168,12 @@ function pickExpressionCluster(editor: Editor, ids: TLShapeId[]): TLShapeId[] {
   }
 
   let cluster = sorted.slice(left, right + 1)
-  // Typical equations are short — drop distant outliers if the cluster grew too wide.
-  if (cluster.length > 8) {
+  // Allow longer multi-symbol/multi-digit expressions, e.g. "(5-2)+10=" (9
+  // strokes) — only drop outliers once a cluster is implausibly large.
+  if (cluster.length > 16) {
     cluster = [...cluster]
       .sort((a, b) => Math.abs(a.cx - anchor.cx) - Math.abs(b.cx - anchor.cx))
-      .slice(0, 8)
+      .slice(0, 16)
       .sort((a, b) => a.cx - b.cx)
   }
   return cluster.map((b) => b.id)

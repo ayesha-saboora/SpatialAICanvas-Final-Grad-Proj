@@ -2,7 +2,6 @@
 import io
 import json
 import re
-import time
 import uuid
 
 from dotenv import load_dotenv
@@ -150,9 +149,16 @@ class ExplainResponse(BaseModel):
     visual_steps: list[str] = []
 
 
-# ---------------------------------------------------------------------------
-# LLM configuration
-# ---------------------------------------------------------------------------
+from stem_format_guide import (
+    ALL_FORMAT_EXAMPLES,
+    ASTAR_DIJKSTRA_EXAMPLE,
+    BST_EXAMPLE,
+    COMPILER_PIPELINE_EXAMPLE,
+    CPU_SCHEDULING_EXAMPLE,
+    HASH_TABLE_EXAMPLE,
+    STEM_RESPONSE_FORMAT,
+    TCP_FLOWCHART_EXAMPLE,
+)
 
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "ollama").lower()
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
@@ -200,28 +206,121 @@ VISION_QUERY_PROMPT = (
 )
 
 TEACH_EXPLAIN_PROMPT = (
-    "You are StudyCanvas AI, a STEM tutor.\n"
-    "Answer the user's question clearly with real terminology and LaTeX formulas "
-    "(inline $F=ma$ or block $$E=mc^2$$).\n"
-    "Do NOT generate a diagram — the app will ask the user if they want a visual separately.\n"
-    "Return ONLY a valid JSON object — no markdown, no backticks.\n\n"
-    'Format: {"explanation":"4-8 sentences answering the question",'
+    "You are StudyCanvas AI, an expert STEM tutor (university-level math, physics, CS, engineering).\n"
+    + STEM_RESPONSE_FORMAT + "\n"
+    "Give rigorous, detailed answers — not surface-level summaries.\n"
+    "Structure explanation: (1) direct answer, (2) step-by-step reasoning with LaTeX, "
+    "(3) intuition, (4) pitfalls when relevant.\n"
+    "Use explanation_blocks for comparisons (e.g. method A vs B, degenerated vs balanced).\n"
+    "Always include tests[] listing 2-4 skills this exercise covers.\n"
+    "Set offer_visual true when a flowchart, labeled diagram, or comparison graph would help.\n"
+    "Return ONLY valid JSON — no markdown, no backticks.\n\n"
+    'Format: {"explanation":"thorough STEM answer",'
+    '"explanation_blocks":[{"label":"Case A","content":"key facts\\ncomplexity"}],'
+    '"tests":["skill 1","skill 2"],'
     '"diagram":null,"offer_visual":true}\n\n'
-    "Set offer_visual to true when a flowchart, labeled diagram, or math graph would help "
-    "(processes, anatomy/systems, functions). Set false for simple factual Q&A.\n"
+    + ALL_FORMAT_EXAMPLES + "\n"
     "JSON ESCAPING: double LaTeX backslashes inside strings (\\\\frac, \\\\Delta)."
 )
+
+SOLVE_STEP_BY_STEP_PROMPT = (
+    "You are StudyCanvas AI, an expert university math tutor.\n"
+    "Produce a complete worked solution like premium class notes — flowing intro, "
+    "centered formula, numbered steps with explanatory prose and bullet points.\n\n"
+    "REQUIRED STRUCTURE (match this exact style):\n"
+    "1) intro: one sentence — 'To solve the integral …, we can use the method of integration by parts.'\n"
+    "2) method + formula: state the method and show the key formula on its own line.\n"
+    "3) Numbered steps with bold titles like 'Step 1: Choose u and dv'.\n"
+    "   - Step 1 content MUST explain WHY (e.g. LIATE guideline) then bullet u and dv:\n"
+    "     'We use the LIATE guideline … we set:\\n• u = x\\n• dv = e^x dx'\n"
+    "4) Subsequent steps show formula application, integration, factoring.\n"
+    "5) 'Final Answer' with the boxed result.\n"
+    "6) 'Quick Check' — verify by differentiating/substituting back.\n\n"
+    "Return ONLY valid JSON — no markdown fences.\n\n"
+    "Format:\n"
+    '{"explanation":"Full readable solution for chat (with **bold** and LaTeX)",'
+    '"intro":"To solve the integral $\\\\int x e^x dx$, we can use the method of integration by parts.",'
+    '"method":"integration by parts",'
+    '"formula":"$$\\\\int u\\\\,dv = uv - \\\\int v\\\\,du$$",'
+    '"solution_steps":['
+    '{"title":"Step 1: Choose u and dv",'
+    '"content":"We use the **LIATE** guideline (Logarithmic, Inverse trigonometric, Algebraic, Trigonometric, Exponential) to choose $u$. Since the algebraic term ($x$) comes before the exponential term ($e^x$), we set:\\n• u = x\\n• dv = e^x dx"},'
+    '{"title":"Step 2: Apply the formula","content":"$$\\\\int xe^x dx = xe^x - \\\\int e^x dx$$"},'
+    '{"title":"Step 3: Integrate","content":"$$= xe^x - e^x + C$$"},'
+    '{"title":"Step 4: Factor","content":"$$= e^x(x-1)+C$$"}'
+    '],'
+    '"final_answer":"$$\\\\int xe^x dx = e^x(x-1)+C$$",'
+    '"quick_check":"Differentiate $e^x(x-1)+C$ using the product rule to get $xe^x$. ✓",'
+    '"diagram":null,"offer_visual":false}\n\n'
+    "RULES:\n"
+    "- intro: single flowing sentence naming the problem and method.\n"
+    "- solution_steps: 3-8 steps; use \\\\n for line breaks; use • bullets for u/dv assignments.\n"
+    "- Step 1 for integration by parts MUST include LIATE reasoning + bullet u and dv.\n"
+    "- explanation must repeat the full solution in prose/LaTeX for the chat panel.\n"
+    "- JSON ESCAPING: double every LaTeX backslash (\\\\int, \\\\frac, \\\\Rightarrow).\n"
+    "- IGNORE any canvas board content, uploaded documents, or unrelated topics. "
+    "Answer ONLY the math problem in the user's question — no digressions."
+)
+
+SOLVE_NUMERICAL_PROMPT = (
+    "You are StudyCanvas AI, a numerical methods and computation expert.\n"
+    "Compute the answer with full working: given values → formula → substitution → arithmetic → result.\n"
+    "Show units, significant figures, and sanity checks when applicable.\n"
+    "Use LaTeX. End with **Final answer:** including units.\n"
+    "Return ONLY valid JSON — no markdown, no backticks.\n\n"
+    'Format: {"explanation":"detailed numerical solution with steps",'
+    '"diagram":null,"offer_visual":false}\n\n'
+    "JSON ESCAPING: double LaTeX backslashes.\n"
+    "IGNORE any canvas board content or unrelated topics. Solve ONLY the user's question."
+)
+
+_MATH_NOISE = re.compile(
+    r"uae|vehicle|ecosystem|platform|stakeholder|interoperability|fraud|lifecycle|"
+    r"unified|selected concepts|not directly related|canvas board",
+    re.I,
+)
+
+
+def _is_math_relevant_step(text: str) -> bool:
+    if _MATH_NOISE.search(text):
+        return False
+    if re.search(r"step\s*\d", text, re.I):
+        return True
+    return bool(re.search(
+        r"\$|∫|=|\^|integrat|deriv|simplif|factor|substitut|u\s*=|dv\s*=|e\^x|\bdx\b|"
+        r"\bdu\b|\+C|antideriv|differentiat|product rule|by parts|liate|guideline|"
+        r"algebraic|exponential",
+        text,
+        re.I,
+    ))
+
+
+def _filter_solution_steps(steps: list) -> list:
+    cleaned = []
+    for s in steps:
+        if not isinstance(s, dict):
+            continue
+        title = str(s.get("title", "")).strip()
+        content = str(s.get("content", "")).strip()
+        if (title or content) and _is_math_relevant_step(f"{title} {content}"):
+            cleaned.append({"title": title, "content": content})
+    return cleaned[:8]
+
 
 FLOWCHART_VISUAL_PROMPT = (
     "You are StudyCanvas AI, a STEM tutor. Your diagram must EXPLAIN HOW something works — "
     "like a textbook flowchart a professor would draw on a whiteboard. "
-    "NOT a concept map, NOT a mind map, NOT a list of related terms linked together.\n"
+    "NOT a concept map, NOT a mind map, NOT ASCII art.\n"
+    + STEM_RESPONSE_FORMAT + "\n"
     "Return ONLY a valid JSON object — no markdown, no backticks, no prose outside the JSON.\n\n"
-    "Format:\n"
+    'Format:\n'
     '{"explanation":"2-4 sentences introducing the visual.",'
+    '"explanation_blocks":[{"label":"Key idea","content":"short summary"}],'
+    '"tests":["skill tested"],'
     '"diagram":{"type":"flowchart","title":"Topic Title",'
     '"nodes":[{"id":"n1","label":"Short step label","row":0,"col":0,"shape":"rectangle","color":"black","role":"start"}],'
-    '"edges":[{"from":"n1","to":"n2","label":"condition or action"}]}}\n\n'
+    '"edges":[{"from":"n1","to":"n2","label":"condition or action"}]},'
+    '"offer_visual":false}\n\n'
     "DIAGRAM PHILOSOPHY — teach the PROCEDURE, not the vocabulary:\n"
     "- A reader should follow arrows top-to-bottom and understand HOW the process executes.\n"
     "- Each node = ONE concrete step, state, decision, or outcome in the execution.\n"
@@ -282,16 +381,21 @@ FLOWCHART_VISUAL_PROMPT = (
     '{"from":"n8","to":"n3","label":"repeat"},'
     '{"from":"n9","to":"n3","label":"repeat"}'
     ']}}\n\n'
+    + TCP_FLOWCHART_EXAMPLE + "\n" + COMPILER_PIPELINE_EXAMPLE + "\n"
+    + CPU_SCHEDULING_EXAMPLE + "\n"
     "JSON ESCAPING — IMPORTANT: any LaTeX backslash inside a JSON string must be DOUBLED. "
     "Write \\\\frac{a}{b}, \\\\Delta, \\\\alpha (two backslashes), NEVER a single backslash."
 )
 
 GRAPH_VISUAL_PROMPT = (
     "You are StudyCanvas AI, a STEM visualization expert. The user wants a MATHEMATICAL GRAPH "
-    "drawn programmatically on their canvas, styled like Desmos/GeoGebra for clear student learning.\n"
+    "drawn on their canvas AND a thorough explanation.\n"
+    + STEM_RESPONSE_FORMAT + "\n"
     "Return ONLY valid JSON — no markdown.\n\n"
-    'Format: {"explanation":"1-2 sentences about the graph",'
-    '"diagram":{"type":"graph","title":"Parent Functions",'
+    'Format: {"explanation":"6-12 sentences explaining the curves and what students should notice",'
+    '"explanation_blocks":[{"label":"Curve A","content":"behavior and complexity"}],'
+    '"tests":["skill tested"],'
+    '"diagram":{"type":"graph","title":"Comparison Title",'
     '"subtitle":"Comparing quadratic, cubic, and trigonometric behavior",'
     '"functions":[{"expr":"x^2","label":"y=x²","color":"blue"},'
     '{"expr":"x^3","label":"y=x³","color":"green"},'
@@ -308,8 +412,12 @@ GRAPH_VISUAL_PROMPT = (
     "- important_points: list key points (intercepts, turning points, maxima/minima). "
     "For y=sin(x) include (0,0),(π/2,1),(π,0),(3π/2,-1) as decimals.\n"
     "- Choose xMin/xMax/yMin/yMax so every curve stays visible — if a fast-growing function "
-    "dominates, tighten the y-range so smaller curves (e.g. sin) remain readable.\n"
-    "- JSON numbers only (use 1.57 not π/2 in x/y fields; π/2 may appear inside label strings)."
+    "dominates, tighten the y-range so smaller curves remain readable.\n"
+    "- JSON numbers only (use 1.57 not π/2 in x/y fields; π/2 may appear inside label strings).\n"
+    "- For comparison graphs (hash tables, scheduling cost, algorithm performance), plot each "
+    "approach as a separate function with descriptive axis labels.\n\n"
+    + HASH_TABLE_EXAMPLE + "\n"
+    + ASTAR_DIJKSTRA_EXAMPLE
 )
 
 GRAPH_REVIEW_PROMPT = (
@@ -344,10 +452,13 @@ GRAPH_REVIEW_PROMPT = (
 
 LABELED_DIAGRAM_PROMPT = (
     "You are StudyCanvas AI. The user wants a LABELED EDUCATIONAL DIAGRAM on their canvas — "
-    "like an anatomy chart or system overview with named parts and connecting arrows.\n"
-    "NOT a step-by-step algorithm flowchart. Show PARTS, REGIONS, and RELATIONSHIPS spatially.\n"
+    "like a textbook diagram with named parts and connecting arrows.\n"
+    "NOT a step-by-step algorithm flowchart. NOT ASCII art.\n"
+    + STEM_RESPONSE_FORMAT + "\n"
     "Return ONLY valid JSON — no markdown.\n\n"
     'Format: {"explanation":"2-3 sentences about the diagram",'
+    '"explanation_blocks":[{"label":"Part A","content":"role and key fact"}],'
+    '"tests":["skill tested"],'
     '"diagram":{"type":"labeled_diagram","title":"Digestive System",'
     '"nodes":[{"id":"n1","label":"Mouth","row":0,"col":0,"shape":"ellipse","color":"blue"},'
     '{"id":"n2","label":"Esophagus","row":1,"col":0,"shape":"rectangle","color":"green"}],'
@@ -358,7 +469,8 @@ LABELED_DIAGRAM_PROMPT = (
     "- Use ellipse for organs/parts, rectangle for structures/processes.\n"
     "- Edges show flow, connection, or hierarchy. Label important edges.\n"
     "- Layout should resemble how a textbook diagram is organized (top-to-bottom flow for systems).\n"
-    "- Colors: blue=structure, green=process/path, orange=output, yellow=decision branch."
+    "- Colors: blue=structure, green=process/path, orange=output, yellow=decision branch.\n\n"
+    + BST_EXAMPLE
 )
 
 
@@ -377,9 +489,46 @@ def _selected_image_ids(payload: ExplainRequest) -> set[str]:
 
 INTENT_MIN_CONF = 0.45        # non-visual intents must clear this to skip keywords
 VISUAL_INTENT_MIN_CONF = 0.30  # visual intents have distinctive phrasing, lower bar
+SOLVE_INTENT_MIN_CONF = 0.32
+
+SOLVE_INTENT_MODES = {
+    "SOLVE_STEP_BY_STEP": "solve_step",
+    "SOLVE_NUMERICAL": "solve_numerical",
+    "DERIVE_EQUATION": "solve_step",
+    "DERIVE_FORMULA": "solve_step",
+    "INTEGRATE_FUNCTION": "solve_step",
+    "DIFFERENTIATE_FUNCTION": "solve_step",
+    "SIMPLIFY_EXPRESSION": "solve_step",
+    "FACTOR_EXPRESSION": "solve_step",
+    "PROVE_THEOREM": "solve_step",
+    "CHECK_MATH_SOLUTION": "solve_step",
+    "FIND_COMPLEXITY": "solve_step",
+}
+
+_SOLVE_KW = (
+    "solve", "calculate", "compute", "derive", "integrate", "differentiate",
+    "prove", "simplify", "factor", "find x", "evaluate", "step by step",
+    "show working", "work out", "how do i solve", "find the value",
+    "integral", "∫", "antiderivative", "evaluate the integral",
+)
 
 
-def _resolve_visual_type(payload: ExplainRequest, question: str) -> str | None:
+def _classify_question_intent(question: str) -> tuple[str | None, float]:
+    try:
+        from intent_predict import classify_intent
+        return classify_intent(question)
+    except Exception:
+        return None, 0.0
+
+
+def _looks_like_solve(question: str) -> bool:
+    q = question.lower()
+    return any(kw in q for kw in _SOLVE_KW)
+
+
+def _resolve_visual_type(
+    payload: ExplainRequest, question: str, intent: str | None = None, conf: float = 0.0,
+) -> str | None:
     """Return flowchart | graph | labeled_diagram when user wants a visual.
 
     Primary path: the trained DistilBERT Prompt Intent Classifier (49-class taxonomy).
@@ -388,13 +537,13 @@ def _resolve_visual_type(payload: ExplainRequest, question: str) -> str | None:
     if payload.generate_visual and payload.visual_type in ("flowchart", "graph", "labeled_diagram"):
         return payload.visual_type
 
+    if intent is None:
+        intent, conf = _classify_question_intent(question)
+
     # Trained model decides the diagram type (replaces keyword matching).
     try:
-        from intent_predict import classify_intent, visual_type_for_intent
-
-        intent, conf = classify_intent(question)
+        from intent_predict import visual_type_for_intent
     except Exception:
-        intent, conf = None, 0.0
         visual_type_for_intent = lambda _i: None  # noqa: E731
 
     if intent is not None:
@@ -445,23 +594,22 @@ _REVIEW_KW = (
 )
 
 
-def _wants_graph_review(payload: ExplainRequest, question: str) -> bool:
+def _wants_graph_review(
+    payload: ExplainRequest, question: str, intent: str | None = None, conf: float = 0.0,
+) -> bool:
     """Detect a 'review / improve this graph' request via trained model + keywords."""
-    try:
-        from intent_predict import classify_intent
-
-        intent, conf = classify_intent(question)
-        if intent == VISUALIZATION_IMPROVEMENT_INTENT and conf >= VISUAL_INTENT_MIN_CONF:
-            return True
-    except Exception:
-        pass
+    if intent is None:
+        intent, conf = _classify_question_intent(question)
+    if intent == VISUALIZATION_IMPROVEMENT_INTENT and conf >= VISUAL_INTENT_MIN_CONF:
+        return True
     q = question.lower()
     return any(kw in q for kw in _REVIEW_KW)
 
 
 def _detect_interaction_mode(payload: ExplainRequest, question: str) -> str:
-    """teach | visual_* | canvas_overview | selection | document | vision"""
+    """teach | solve_* | visual_* | canvas_overview | selection | document | vision"""
     q = question.lower().strip()
+    intent, conf = _classify_question_intent(question)
     has_canvas = bool(payload.canvas_summary or len(payload.canvas_shapes) >= 2)
     has_selection = bool(payload.selected_labels or payload.selected_shape_ids)
     has_doc = bool(payload.document_text.strip())
@@ -488,10 +636,10 @@ def _detect_interaction_mode(payload: ExplainRequest, question: str) -> str:
     )
 
     # Visualization Review: critique an existing graph and regenerate an improved one.
-    if _wants_graph_review(payload, question):
+    if _wants_graph_review(payload, question, intent, conf):
         return "visual_graph_review"
 
-    visual_type = _resolve_visual_type(payload, question)
+    visual_type = _resolve_visual_type(payload, question, intent, conf)
     if visual_type:
         return f"visual_{visual_type}"
 
@@ -510,23 +658,78 @@ def _detect_interaction_mode(payload: ExplainRequest, question: str) -> str:
         return "canvas_overview"
     if has_canvas and any(w in q for w in ("summarize", "overview", "what have i")):
         return "canvas_overview"
+
+    # Explicit step-by-step requests always use solve mode.
+    if any(p in q for p in ("step by step", "step-by-step", "show steps", "show working", "work it out")):
+        return "solve_step"
+
+    # STEM solve modes — DistilBERT intent or keyword fallback.
+    if intent and conf >= SOLVE_INTENT_MIN_CONF:
+        solve_mode = SOLVE_INTENT_MODES.get(intent)
+        if solve_mode:
+            return solve_mode
+    if _looks_like_solve(question):
+        if any(w in q for w in ("numerical", "compute", "evaluate", "calculate")):
+            return "solve_numerical"
+        return "solve_step"
+
     return "teach"
 
 
-def _format_spatial_context(payload: ExplainRequest) -> str:
+_FOLLOWUP_VISUAL_PHRASES = (
+    "what we just discussed", "what we just talked", "what we discussed",
+    "for the current topic", "current topic", "our conversation",
+    "based on our discussion", "what you just explained", "from our chat",
+    "for what we just", "the topic above", "what you just said",
+    "from the previous", "for that problem", "for this problem",
+)
+
+
+def _is_visual_chat_followup(question: str, payload: ExplainRequest) -> bool:
+    """User wants a diagram for the recent chat, not for old canvas content."""
+    if not payload.generate_visual:
+        return False
+    q = question.lower()
+    return any(p in q for p in _FOLLOWUP_VISUAL_PHRASES)
+
+
+def _recent_chat_context(messages: list) -> str:
+    """Extract the last Q&A exchange to anchor diagram follow-ups."""
+    if len(messages) < 2:
+        return ""
+    prior = messages[:-1] if messages[-1].role == "user" else list(messages)
+    last_user = ""
+    last_assistant = ""
+    for msg in reversed(prior):
+        if msg.role == "assistant" and not last_assistant and msg.content.strip():
+            last_assistant = msg.content.strip()
+        elif msg.role == "user" and not last_user and msg.content.strip():
+            last_user = msg.content.strip()
+        if last_user and last_assistant:
+            break
+    parts: list[str] = []
+    if last_user:
+        parts.append(f"User's question:\n{last_user[:1200]}")
+    if last_assistant:
+        parts.append(f"Assistant's answer:\n{last_assistant[:2500]}")
+    return "\n\n".join(parts)
+
+
+def _format_spatial_context(payload: ExplainRequest, *, omit_board_topics: bool = False) -> str:
     parts: list[str] = []
 
-    if payload.canvas_summary.strip():
-        parts.append("CANVAS TOPIC SUMMARY:\n" + payload.canvas_summary.strip())
+    if not omit_board_topics:
+        if payload.canvas_summary.strip():
+            parts.append("CANVAS TOPIC SUMMARY:\n" + payload.canvas_summary.strip())
 
-    if payload.canvas_edges:
-        flow = [
-            f"  {e.fromLabel} → {e.toLabel}" + (f" ({e.label})" if e.label else "")
-            for e in payload.canvas_edges[:20]
-            if e.fromLabel and e.toLabel
-        ]
-        if flow:
-            parts.append("CONCEPT FLOW ON BOARD:\n" + "\n".join(flow))
+        if payload.canvas_edges:
+            flow = [
+                f"  {e.fromLabel} → {e.toLabel}" + (f" ({e.label})" if e.label else "")
+                for e in payload.canvas_edges[:20]
+                if e.fromLabel and e.toLabel
+            ]
+            if flow:
+                parts.append("CONCEPT FLOW ON BOARD:\n" + "\n".join(flow))
 
     if payload.selected_labels:
         parts.append(
@@ -545,17 +748,47 @@ def _format_spatial_context(payload: ExplainRequest) -> str:
     return "\n\n".join(parts)
 
 
-def _build_user_prompt_text(payload: ExplainRequest, question: str, mode: str) -> str:
-    spatial = _format_spatial_context(payload)
+def _build_user_prompt_text(
+    payload: ExplainRequest, question: str, mode: str, history: list | None = None,
+) -> str:
+    chat_followup = _is_visual_chat_followup(question, payload)
+    solve_mode = mode in ("solve_step", "solve_numerical")
+    spatial = "" if solve_mode else _format_spatial_context(
+        payload, omit_board_topics=chat_followup,
+    )
     blocks = [f"User question: {question}", f"Language: {payload.language}"]
+
+    if chat_followup and history:
+        chat_ctx = _recent_chat_context(history)
+        if chat_ctx:
+            blocks.append(
+                "DIAGRAM TOPIC — use ONLY this recent conversation (ignore unrelated "
+                "content already drawn on the canvas board):\n" + chat_ctx
+            )
+
     if spatial:
         blocks.append(spatial)
     if mode == "teach":
         blocks.append(
-            'Return ONLY: {"explanation":"...","diagram":null,"offer_visual":true or false}'
+            'Return ONLY: {"explanation":"detailed answer for chat",'
+            '"explanation_blocks":[{"label":"Key Point","content":"facts\\nmetrics"}],'
+            '"tests":["skill 1","skill 2"],'
+            '"diagram":{...} or null,"offer_visual":true or false}'
+        )
+    elif mode in ("solve_step", "solve_numerical"):
+        blocks.append(
+            'Return ONLY: {"explanation":"...","intro":"To solve the integral …, we can use the method of ….",'
+            '"method":"...","formula":"...",'
+            '"solution_steps":[{"title":"Step 1: Choose u and dv","content":"LIATE reasoning\\n• u = …\\n• dv = …"}],'
+            '"final_answer":"...","quick_check":"...","diagram":null,"offer_visual":false}'
         )
     elif mode.startswith("visual_"):
-        blocks.append("Return ONLY the JSON object with explanation and diagram.")
+        blocks.append(
+            'Return ONLY: {"explanation":"2-4 sentences",'
+            '"explanation_blocks":[{"label":"...","content":"..."}],'
+            '"tests":["..."],'
+            '"diagram":{...}}'
+        )
     else:
         blocks.append('Return ONLY: {"explanation":"...","diagram":null}')
     return "\n\n".join(blocks)
@@ -570,6 +803,10 @@ def _system_prompt_for_mode(mode: str) -> str:
         return GRAPH_REVIEW_PROMPT
     if mode == "visual_labeled_diagram":
         return LABELED_DIAGRAM_PROMPT
+    if mode == "solve_step":
+        return SOLVE_STEP_BY_STEP_PROMPT
+    if mode == "solve_numerical":
+        return SOLVE_NUMERICAL_PROMPT
     if mode == "canvas_overview":
         return CANVAS_OVERVIEW_PROMPT
     if mode == "selection":
@@ -581,6 +818,14 @@ def _system_prompt_for_mode(mode: str) -> str:
     return TEACH_EXPLAIN_PROMPT
 
 
+def _max_tokens_for_mode(mode: str) -> int:
+    if mode in ("solve_step", "solve_numerical"):
+        return 2800
+    if mode.startswith("visual_"):
+        return 1800
+    return 1600
+
+
 def _prepare_llm_messages(payload: ExplainRequest) -> tuple[list[dict], str, bool, str]:
     """Returns (messages, model_name, has_vision_images, interaction_mode)."""
     history = payload.messages or []
@@ -588,7 +833,11 @@ def _prepare_llm_messages(payload: ExplainRequest) -> tuple[list[dict], str, boo
         raise HTTPException(422, "Provide either messages or text")
 
     if history:
-        window = history[-4:]
+        window_size = 8 if _is_visual_chat_followup(
+            history[-1].content if history[-1].role == "user" else "",
+            payload,
+        ) else 4
+        window = history[-window_size:]
         question = window[-1].content if window[-1].role == "user" else _user_topic_for_request(payload)
     else:
         question = payload.text
@@ -602,7 +851,7 @@ def _prepare_llm_messages(payload: ExplainRequest) -> tuple[list[dict], str, boo
         if msg.role in ("user", "assistant") and msg.content.strip():
             llm_messages.append({"role": msg.role, "content": msg.content})
 
-    user_text = _build_user_prompt_text(payload, question, mode)
+    user_text = _build_user_prompt_text(payload, question, mode, history=window)
     vision_images = [img for img in payload.canvas_images if img.data_url][:3]
     selected_imgs = _selected_image_ids(payload)
     use_vision = mode == "vision" or (
@@ -775,8 +1024,207 @@ def _try_extract_diagram_from_text(text: str) -> dict | None:
     return None
 
 
-def parse_explain_content(content: str, topic: str) -> tuple[str, dict | None, list[str], bool]:
-    """Normalize LLM output into explanation, optional visual, and offer_visual flag."""
+def _build_solution_from_explanation(explanation: str) -> dict | None:
+    """Fallback when the LLM omits solution_steps in JSON."""
+    text = (explanation or "").strip()
+    if len(text) < 40:
+        return None
+
+    steps: list[dict] = []
+    step_re = re.compile(
+        r"Step\s*(\d+)\s*[:.)]\s*([^\n]*)([\s\S]*?)(?=Step\s*\d+\s*[:.)]|Final\s*Answer|Quick\s*Check|$)",
+        re.I,
+    )
+    for m in step_re.finditer(text):
+        title = m.group(2).strip()
+        content = m.group(3).strip()
+        # Break content into sub-lines for canvas
+        content = re.sub(r"\s*([,;])\s*", r"\1\n", content)
+        steps.append({
+            "title": f"Step {m.group(1)}: {title}" if title else f"Step {m.group(1)}",
+            "content": content,
+        })
+
+    if not steps:
+        method = "Integration by Parts" if "integration by parts" in text.lower() else ""
+        formula = "∫u dv = uv − ∫v du" if method else ""
+        # Split dense paragraph into sentence-sized steps
+        sentences = re.findall(r"[^.!?]+[.!?]+|[^.!?]+$", text)
+        sentences = [s.strip() for s in sentences if len(s.strip()) > 8]
+        step_titles = [
+            "Choose u and dv", "Apply the formula", "Integrate", "Simplify", "Result",
+        ]
+        for i, sent in enumerate(sentences[:8]):
+            title = step_titles[i] if i < len(step_titles) else f"Part {i + 1}"
+            steps.append({"title": f"Step {i + 1}: {title}", "content": sent})
+        steps = _filter_solution_steps(steps)
+        if not steps:
+            return None
+        final_m = re.search(r"(?:final answer|thus|therefore)[:\s]*(.+)", text, re.I)
+        return {
+            "method": method,
+            "formula": formula,
+            "steps": steps,
+            "final_answer": final_m.group(1).strip() if final_m else "",
+            "quick_check": "",
+        }
+
+    final_m = re.search(r"Final\s*Answer\s*[:.]?\s*([\s\S]*?)(?=Quick\s*Check|$)", text, re.I)
+    check_m = re.search(r"Quick\s*Check\s*[:.]?\s*([\s\S]*?)$", text, re.I)
+    method = "Integration by Parts" if "integration by parts" in text.lower() else ""
+    steps = _filter_solution_steps(steps)
+    if not steps:
+        return None
+    return {
+        "method": method,
+        "formula": "∫u dv = uv − ∫v du" if method else "",
+        "steps": steps,
+        "final_answer": final_m.group(1).strip() if final_m else "",
+        "quick_check": check_m.group(1).strip() if check_m else "",
+    }
+
+
+def _extract_solution_payload(data: dict | None) -> dict | None:
+    """Structured steps for canvas note layout."""
+    if not isinstance(data, dict):
+        return None
+    steps = data.get("solution_steps")
+    if not isinstance(steps, list) or not steps:
+        return None
+    cleaned_steps = []
+    for s in steps:
+        if not isinstance(s, dict):
+            continue
+        title = str(s.get("title", "")).strip()
+        content = str(s.get("content", "")).strip()
+        if title or content:
+            cleaned_steps.append({"title": title, "content": content})
+    cleaned_steps = _filter_solution_steps(cleaned_steps)
+    if not cleaned_steps:
+        return None
+    return {
+        "intro": str(data.get("intro", "")).strip(),
+        "method": str(data.get("method", "")).strip(),
+        "formula": str(data.get("formula", "")).strip(),
+        "steps": cleaned_steps,
+        "final_answer": str(data.get("final_answer", "")).strip(),
+        "quick_check": str(data.get("quick_check", "")).strip(),
+    }
+
+
+def _build_stem_from_explanation(text: str) -> dict | None:
+    """Fallback: parse prose/markdown into labeled canvas blocks."""
+    if not text or len(text.strip()) < 40:
+        return None
+    blocks: list[dict] = []
+    tests: list[str] = []
+
+    # **Label:** content or **Label** content
+    for m in re.finditer(
+        r"\*\*([^*]+)\*\*[:\s]*([^\n*]+(?:\n(?!\*\*|Step\s*\d|Tests?:)[^\n]+)*)",
+        text,
+        re.I,
+    ):
+        label = m.group(1).strip().rstrip(":")
+        content = m.group(2).strip()
+        if label and content and len(content) > 3:
+            blocks.append({"label": label, "content": content})
+
+    # Step N: title — content until next step
+    if not blocks:
+        step_re = re.compile(
+            r"Step\s*(\d+)\s*[:.)]\s*([^\n]*)([\s\S]*?)(?=Step\s*\d+\s*[:.)]|Final\s*Answer|Quick\s*Check|Tests?:|$)",
+            re.I,
+        )
+        for m in step_re.finditer(text):
+            title = m.group(2).strip()
+            content = m.group(3).strip()
+            label = f"Step {m.group(1)}: {title}" if title else f"Step {m.group(1)}"
+            if content:
+                blocks.append({"label": label, "content": content})
+
+    # Short "Label: content" lines (Dijkstra:, A*:, FCFS:, etc.)
+    if not blocks:
+        for m in re.finditer(
+            r"(?:^|\n)([A-Za-z][A-Za-z0-9*+\-/ ]{1,28}):\s*([^\n]+(?:\n(?![A-Za-z][^:\n]{1,28}:)[^\n]+)*)",
+            text,
+        ):
+            label = m.group(1).strip()
+            content = m.group(2).strip()
+            if label.lower() not in ("tests", "test", "note", "notes") and len(content) > 5:
+                blocks.append({"label": label, "content": content})
+
+    # Paragraph chunks as last resort
+    if not blocks:
+        chunks = [c.strip() for c in re.split(r"\n\s*\n", text) if len(c.strip()) > 30]
+        for i, chunk in enumerate(chunks[:6]):
+            first_line = chunk.split("\n")[0].strip()
+            rest = "\n".join(chunk.split("\n")[1:]).strip()
+            if rest and len(first_line) < 60:
+                blocks.append({"label": first_line.rstrip(":"), "content": rest})
+            else:
+                blocks.append({"label": f"Point {i + 1}", "content": chunk})
+
+    test_m = re.search(r"Tests?:\s*([\s\S]*?)$", text, re.I)
+    if test_m:
+        for line in test_m.group(1).split("\n"):
+            line = re.sub(r"^[\s•\-*○]+", "", line).strip()
+            if line and len(line) > 2:
+                tests.append(line)
+
+    if not blocks:
+        return None
+    return {"blocks": blocks[:6], "tests": tests[:6]}
+
+
+def _stem_from_solution_steps(data: dict) -> dict | None:
+    """Use solution_steps as explanation blocks for canvas (non-solve visual/teach)."""
+    steps = data.get("solution_steps")
+    if not isinstance(steps, list) or not steps:
+        return None
+    blocks = []
+    for s in steps:
+        if not isinstance(s, dict):
+            continue
+        title = str(s.get("title", "")).strip()
+        content = str(s.get("content", "")).strip()
+        if title or content:
+            blocks.append({"label": title or "Step", "content": content})
+    if not blocks:
+        return None
+    tests_raw = data.get("tests")
+    tests = [str(t).strip() for t in tests_raw] if isinstance(tests_raw, list) else []
+    return {"blocks": blocks[:8], "tests": [t for t in tests if t][:6]}
+
+
+def _extract_stem_payload(data: dict | None) -> dict | None:
+    """Labeled explanation cards + tests for canvas layout."""
+    if not isinstance(data, dict):
+        return None
+    blocks_raw = data.get("explanation_blocks")
+    if not isinstance(blocks_raw, list):
+        blocks_raw = []
+    blocks = []
+    for b in blocks_raw:
+        if not isinstance(b, dict):
+            continue
+        label = str(b.get("label", "")).strip()
+        content = str(b.get("content", "")).strip()
+        if label or content:
+            blocks.append({"label": label, "content": content})
+    tests_raw = data.get("tests")
+    tests = []
+    if isinstance(tests_raw, list):
+        tests = [str(t).strip() for t in tests_raw if str(t).strip()]
+    if not blocks and not tests:
+        return None
+    return {"blocks": blocks[:6], "tests": tests[:6]}
+
+
+def parse_explain_content(
+    content: str, topic: str, mode: str = "teach",
+) -> tuple[str, dict | None, list[str], bool, dict | None, dict | None]:
+    """Normalize LLM output into explanation, visual, offer_visual, solution, and stem payload."""
     raw = (content or "").strip()
     data = extract_json(raw)
     explanation = ""
@@ -812,7 +1260,17 @@ def parse_explain_content(content: str, topic: str) -> tuple[str, dict | None, l
         if salvaged:
             explanation = salvaged
 
-    return explanation, diagram, [], offer_visual
+    solution = None
+    if mode in ("solve_step", "solve_numerical"):
+        solution = _extract_solution_payload(data if isinstance(data, dict) else None)
+        if not solution and explanation:
+            solution = _build_solution_from_explanation(explanation)
+    stem = _extract_stem_payload(data if isinstance(data, dict) else None)
+    if not stem and isinstance(data, dict):
+        stem = _stem_from_solution_steps(data)
+    if not stem and explanation and mode not in ("solve_step", "solve_numerical"):
+        stem = _build_stem_from_explanation(explanation)
+    return explanation, diagram, [], offer_visual, solution, stem
 
 
 VALID_SHAPES = {"rectangle", "ellipse", "diamond"}
@@ -1126,7 +1584,7 @@ def explain(payload: ExplainRequest, user: User = Depends(get_current_user), db:
     if not content:
         return ExplainResponse(explanation="No explanation returned.", visual_steps=[])
 
-    explanation, diagram, visual_steps, _offer_visual = parse_explain_content(content, user_topic)
+    explanation, diagram, visual_steps, _offer_visual, _solution, _stem = parse_explain_content(content, user_topic)
     if not mode.startswith("visual_"):
         diagram = None
         visual_steps = []
@@ -1229,33 +1687,33 @@ def explain_stream(payload: ExplainRequest, user: User = Depends(get_current_use
 
     create_kw: dict = {
         "model": model,
-        "temperature": 0.25,
+        "temperature": 0.2,
         "messages": llm_messages,
-        "max_tokens": 1400,
+        "max_tokens": _max_tokens_for_mode(mode),
         "stream": True,
     }
-    if LLM_PROVIDER == "openai" and mode in ("teach", "visual_flowchart", "visual_graph", "visual_graph_review", "visual_labeled_diagram") and not has_vision:
+    json_modes = (
+        "teach", "solve_step", "solve_numerical",
+        "visual_flowchart", "visual_graph", "visual_graph_review", "visual_labeled_diagram",
+    )
+    if LLM_PROVIDER == "openai" and mode in json_modes and not has_vision:
         create_kw["response_format"] = {"type": "json_object"}
 
     project_id = payload.project_id
     user_content = payload.messages[-1].content if payload.messages else payload.text
-    skip_diagram = not mode.startswith("visual_")
+    skip_diagram = mode in ("solve_step", "solve_numerical")
 
     def _emit_text(new_text: str):
-        """Split big bursts so the UI animates naturally even when the upstream
-        provider consolidates chunks. Total animation overhead capped at ~500ms.
-        """
-        if len(new_text) <= 32:
+        """Stream text chunks to the client immediately (no artificial delay)."""
+        if not new_text:
+            return
+        if len(new_text) <= 64:
             yield f"data: {json.dumps({'type': 'text', 'content': new_text})}\n\n"
             return
-        piece_size = max(16, len(new_text) // 80)
-        i = 0
-        n = len(new_text)
-        while i < n:
+        piece_size = 48
+        for i in range(0, len(new_text), piece_size):
             piece = new_text[i : i + piece_size]
-            i += piece_size
             yield f"data: {json.dumps({'type': 'text', 'content': piece})}\n\n"
-            time.sleep(0.005)
 
     def event_stream():
         buffer = ""
@@ -1315,7 +1773,9 @@ def explain_stream(payload: ExplainRequest, user: User = Depends(get_current_use
         # (preserves LaTeX backslashes). parse_explain_content provides the diagram
         # and visual_steps which use the same backslash-tolerant parser.
         streamed_explanation = _decode_so_far(buffer) or ""
-        parsed_explanation, diagram, visual_steps, offer_visual = parse_explain_content(buffer, user_topic)
+        parsed_explanation, diagram, visual_steps, offer_visual, solution, stem = parse_explain_content(
+            buffer, user_topic, mode,
+        )
         explanation = streamed_explanation or parsed_explanation
         if skip_diagram:
             diagram = None
@@ -1344,6 +1804,8 @@ def explain_stream(payload: ExplainRequest, user: User = Depends(get_current_use
                 "visual_steps": visual_steps[:8],
                 "mode": mode,
                 "offer_visual": offer_visual,
+                "solution": solution,
+                "stem": stem,
             })
             + "\n\n"
         )
@@ -1425,6 +1887,8 @@ class MathPredictResponse(BaseModel):
 class MathExpressionResponse(BaseModel):
     expression: str
     symbols: list[MathPredictResponse] = []
+    result: str | None = None
+    source: str | None = None
 
 
 @app.post("/math/recognize-symbol", response_model=MathPredictResponse)
@@ -1451,6 +1915,7 @@ async def predict_math_symbol_endpoint(
 @app.post("/math/recognize-expression", response_model=MathExpressionResponse)
 async def predict_math_expression_endpoint(
     file: UploadFile = File(...),
+    symbols: list[UploadFile] = File(default=[]),
     _user: User = Depends(get_current_user),
 ):
     if not file.content_type or not file.content_type.startswith("image/"):
@@ -1458,10 +1923,15 @@ async def predict_math_expression_endpoint(
     raw = await file.read()
     if not raw:
         raise HTTPException(400, "Empty image upload")
+    symbol_bytes: list[bytes] = []
+    for sym in symbols:
+        b = await sym.read()
+        if b:
+            symbol_bytes.append(b)
     try:
         from math_recognize_expression import recognize_expression_image
 
-        result = recognize_expression_image(raw)
+        result = recognize_expression_image(raw, symbol_bytes or None)
     except FileNotFoundError as exc:
         raise HTTPException(503, str(exc)) from exc
     except Exception as exc:
@@ -1469,6 +1939,8 @@ async def predict_math_expression_endpoint(
     return MathExpressionResponse(
         expression=result["expression"],
         symbols=[MathPredictResponse(**s) for s in result["symbols"]],
+        result=result.get("result"),
+        source=result.get("source"),
     )
 
 

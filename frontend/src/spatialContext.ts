@@ -134,8 +134,11 @@ export async function collectSpatialContext(
   options: {
     pinnedSelectionIds?: string[]
     storedDocuments?: StoredDocument[]
+    /** Skip image compression unless vision/document context is needed (faster chat). */
+    includeImages?: boolean
   } = {},
 ): Promise<SpatialContext> {
+  const includeImages = options.includeImages !== false
   const canvas_shapes: CanvasShapeCtx[] = []
   const canvas_images: CanvasImageCtx[] = []
   const conceptNodes: {
@@ -282,6 +285,18 @@ export async function collectSpatialContext(
   visionImages = visionImages.slice(0, 3)
 
   const compressed: CanvasImageCtx[] = []
+  if (!includeImages) {
+    return {
+      canvas_shapes: canvas_shapes.filter((s) => s.type !== 'arrow').slice(0, 40),
+      canvas_edges: canvas_edges.slice(0, 20),
+      canvas_summary: buildCanvasSummary(titles, conceptLabels, canvas_edges, docNames, imageNames),
+      selected_shape_ids,
+      selected_labels,
+      document_text: storedText.slice(0, 20000),
+      canvas_images: [],
+    }
+  }
+
   for (const img of visionImages) {
     let src = img.data_url
     if (!src) {

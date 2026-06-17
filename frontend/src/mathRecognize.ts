@@ -45,23 +45,25 @@ function tryEvaluateExpression(expr: string): string {
     }
     if (left && right) {
       try {
+        const lv = math.evaluate(left) as number
+        const rv = math.evaluate(right) as number
+        if (typeof lv === 'number' && typeof rv === 'number' && Number.isFinite(lv) && Number.isFinite(rv)) {
+          return lv === rv ? formatNum(lv) : formatNum(lv)
+        }
+      } catch {
+        /* fall through */
+      }
+      try {
         const value = math.evaluate(left) as number
         if (typeof value === 'number' && Number.isFinite(value)) return formatNum(value)
       } catch {
         /* fall through */
       }
+    }
+    if (left) {
       try {
-        const f = (x: number) => {
-          const lv = math.evaluate(left, { x }) as number
-          const rv = math.evaluate(right, { x }) as number
-          return lv - rv
-        }
-        const y0 = f(0)
-        const y1 = f(1)
-        if (Math.abs(y1 - y0) > 1e-9) {
-          const root = -y0 / (y1 - y0)
-          if (Number.isFinite(root)) return `x = ${formatNum(root)}`
-        }
+        const value = math.evaluate(left) as number
+        if (typeof value === 'number' && Number.isFinite(value)) return formatNum(value)
       } catch {
         /* fall through */
       }
@@ -143,7 +145,8 @@ function pickExpressionCluster(editor: Editor, ids: TLShapeId[]): TLShapeId[] {
   const pool = nearby.length > 0 ? nearby : [anchor]
 
   const maxDy = Math.max(60, anchor.h * 1.5)
-  const maxGap = Math.max(90, anchor.w * 2.5)
+  const maxGapLeft = Math.max(90, anchor.w * 2.5)
+  const maxGapRight = Math.max(140, anchor.w * 3.5)
 
   const onLine = pool.filter((b) => {
     if (Math.abs(b.cy - anchor.cy) <= maxDy) return true
@@ -158,12 +161,12 @@ function pickExpressionCluster(editor: Editor, ids: TLShapeId[]): TLShapeId[] {
   let right = anchorIdx
   while (left > 0) {
     const gap = sorted[left].x - (sorted[left - 1].x + sorted[left - 1].w)
-    if (gap > maxGap) break
+    if (gap > maxGapLeft) break
     left--
   }
   while (right < sorted.length - 1) {
     const gap = sorted[right + 1].x - (sorted[right].x + sorted[right].w)
-    if (gap > maxGap) break
+    if (gap > maxGapRight) break
     right++
   }
 
@@ -205,12 +208,50 @@ export function clusterBounds(editor: Editor, shapeIds: TLShapeId[]): { minX: nu
   return { minX, minY, maxX, maxY }
 }
 
+/** Right edge of the expression line, including trailing = strokes not in the CNN cluster. */
+function expressionRightEdge(editor: Editor, bounds: { minX: number; minY: number; maxX: number; maxY: number }): number {
+  let right = bounds.maxX
+  const h = Math.max(bounds.maxY - bounds.minY, 24)
+  const yTol = h * 0.55
+  const xReach = Math.max(h * 2, 100)
+  const clusterCy = (bounds.minY + bounds.maxY) / 2
+
+  for (const id of editor.getCurrentPageShapeIds()) {
+    if (!isUsableDrawShape(editor, id)) continue
+    const b = editor.getShapePageBounds(id)
+    if (!b) continue
+    if (b.minX < bounds.minX - 20) continue
+    if (b.minX > bounds.maxX + xReach) continue
+    const cy = b.y + b.h / 2
+    if (Math.abs(cy - clusterCy) > yTol) continue
+    right = Math.max(right, b.maxX)
+  }
+  return right
+}
+
+/** Place answer text immediately after the = on the same baseline as the handwriting. */
+export function getMathAnswerOrigin(editor: Editor, shapeIds: TLShapeId[]): { x: number; y: number } | null {
+  const bounds = clusterBounds(editor, shapeIds)
+  if (!bounds) return null
+
+  const right = expressionRightEdge(editor, bounds)
+  const h = bounds.maxY - bounds.minY
+  const gap = Math.max(28, h * 0.25)
+  const textH = 44
+  const midY = (bounds.minY + bounds.maxY) / 2
+
+  return {
+    x: right + gap,
+    y: midY - textH * 0.42,
+  }
+}
+
 export async function exportExpressionImage(editor: Editor, shapeIds: TLShapeId[]): Promise<Blob> {
   const { blob } = await editor.toImage(shapeIds, {
     format: 'png',
     background: true,
-    padding: 32,
-    scale: 4,
+    padding: 16,
+    scale: 2,
   })
   return blob
 }
@@ -250,8 +291,8 @@ function evaluateBestAnswer(symbols: MathSymbolResult[]): string | null {
   if (byConf.length >= 2) {
     const i0 = byConf[0].i
     const i1 = byConf[1].i
-    const opts0 = [symbols[i0].symbol, ...(symbols[i0].alternatives?.slice(0, 2).map((a) => a.symbol) ?? [])]
-    const opts1 = [symbols[i1].symbol, ...(symbols[i1].alternatives?.slice(0, 2).map((a) => a.symbol) ?? [])]
+    const opts0 = [symbols[i0].symbol, ...(symbols[i0].alternatives?.slice(0, 3).map((a) => a.symbol) ?? [])]
+    const opts1 = [symbols[i1].symbol, ...(symbols[i1].alternatives?.slice(0, 3).map((a) => a.symbol) ?? [])]
     for (const a0 of opts0) {
       for (const a1 of opts1) {
         const chars = symbols.map((s) => s.symbol)
@@ -263,29 +304,75 @@ function evaluateBestAnswer(symbols: MathSymbolResult[]): string | null {
     }
   }
 
+  // Try all low-confidence positions with top-3 alternatives (digits often confused).
+  if (byConf.length >= 1) {
+    const chars = symbols.map((s) => s.symbol)
+    const tryIdx = byConf.slice(0, 3).map((x) => x.i)
+    const optsPer: string[][] = tryIdx.map((i) => [
+      symbols[i].symbol,
+      ...(symbols[i].alternatives?.slice(0, 4).map((a) => a.symbol) ?? []),
+    ])
+    const recurse = (depth: number, current: string[]) => {
+      if (depth === tryIdx.length) {
+        const joined = current.join('')
+        attempts.push(joined, sanitizeExpression(joined))
+        return
+      }
+      for (const opt of optsPer[depth]) {
+        const next = [...current]
+        next[tryIdx[depth]] = opt
+        recurse(depth + 1, next)
+      }
+    }
+    recurse(0, chars)
+  }
+
+  let best: string | null = null
   for (const expr of [...new Set(attempts.filter(Boolean))]) {
     const result = tryEvaluateExpression(expr)
-    if (/^-?\d+(\.\d+)?$/.test(result.trim())) return result.trim()
+    if (/^-?\d+(\.\d+)?$/.test(result.trim())) {
+      best = result.trim()
+    }
   }
-  return null
+  return best
+}
+
+function sortShapesLeftToRight(editor: Editor, shapeIds: TLShapeId[]): TLShapeId[] {
+  return [...shapeIds].sort((a, b) => {
+    const ba = editor.getShapePageBounds(a)
+    const bb = editor.getShapePageBounds(b)
+    return (ba?.x ?? 0) - (bb?.x ?? 0)
+  })
 }
 
 export async function recognizeDrawnMath(
   editor: Editor,
-  predictExpression: (image: Blob) => Promise<{ expression: string; symbols: MathSymbolResult[] }>,
+  predictExpression: (
+    image: Blob,
+    symbolImages: Blob[],
+  ) => Promise<{ expression: string; symbols: MathSymbolResult[]; result?: string | null }>,
 ): Promise<MathRecognizeOutcome | null> {
   const shapeIds = resolveShapeIds(editor)
   if (shapeIds.length === 0) return null
 
+  const ordered = sortShapesLeftToRight(editor, shapeIds)
+  const symbolBlobs = await Promise.all(ordered.map((id) => exportShapeImage(editor, id)))
   const blob = await exportExpressionImage(editor, shapeIds)
-  const { expression, symbols } = await predictExpression(blob)
+  const { expression, symbols, result: serverResult } = await predictExpression(blob, symbolBlobs)
+
   const evalResult =
-    evaluateBestAnswer(symbols) ?? tryEvaluateExpression(sanitizeExpression(expression))
+    serverResult ??
+    evaluateBestAnswer(symbols) ??
+    tryEvaluateExpression(sanitizeExpression(expression))
+
   return { result: { expression, result: evalResult, symbols }, shapeIds }
 }
 
 /** Returns only the numeric answer for the canvas — never debug text. */
 export function formatMathAnswer(result: MathRecognizeResult): string | null {
+  const trimmed = result.result?.trim()
+  if (trimmed && /^-?\d+(\.\d+)?$/.test(trimmed)) return trimmed
+
   const fromSymbols = evaluateBestAnswer(result.symbols)
   if (fromSymbols) return fromSymbols
   const fromExpr = tryEvaluateExpression(sanitizeExpression(result.expression))

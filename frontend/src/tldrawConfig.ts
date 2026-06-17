@@ -11,9 +11,15 @@ import { StudyCanvasToolbar, ToolColorBar } from './canvasToolbar'
 import {
   ensureVisibleNoteColor,
   ensureVisibleStrokeColor,
-  restoreCanvasContrastForLightBoard,
+  type CanvasUiTheme,
 } from './canvasTheme'
 import { ResizableNoteShapeTool } from './resizableNoteTool'
+
+let canvasUiTheme: CanvasUiTheme = 'light'
+
+export function setCanvasUiTheme(theme: CanvasUiTheme): void {
+  canvasUiTheme = theme
+}
 
 export const STUDY_CANVAS_SHAPE_UTILS = [
   NoteShapeUtil.configure({ resizeMode: 'scale' }),
@@ -34,7 +40,7 @@ export const STUDY_CANVAS_OVERRIDES: TLUiOverrides = {
     if (draw) {
       const selectDraw = draw.onSelect.bind(draw)
       draw.onSelect = (source) => {
-        ensureVisibleStrokeColor(editor)
+        ensureVisibleStrokeColor(editor, canvasUiTheme)
         selectDraw(source)
       }
     }
@@ -43,7 +49,7 @@ export const STUDY_CANVAS_OVERRIDES: TLUiOverrides = {
     if (arrow) {
       const selectArrow = arrow.onSelect.bind(arrow)
       arrow.onSelect = (source) => {
-        ensureVisibleStrokeColor(editor)
+        ensureVisibleStrokeColor(editor, canvasUiTheme)
         selectArrow(source)
       }
     }
@@ -70,10 +76,7 @@ export const STUDY_CANVAS_OVERRIDES: TLUiOverrides = {
   },
 }
 
-export function setupStudyCanvasEditor(editor: Editor): void {
-  ensureVisibleStrokeColor(editor)
-  editor.store.listen(
-    () => restoreCanvasContrastForLightBoard(editor),
-    { source: 'user', scope: 'document' },
-  )
+export function setupStudyCanvasEditor(editor: Editor, theme: CanvasUiTheme = 'light'): void {
+  canvasUiTheme = theme
+  ensureVisibleStrokeColor(editor, theme)
 }

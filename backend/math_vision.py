@@ -1,4 +1,4 @@
-"""Read handwritten math via vision LLM (primary path for canvas handwriting)."""
+"""Read handwritten math via vision LLM (fallback when CNN is uncertain)."""
 
 from __future__ import annotations
 
@@ -17,7 +17,6 @@ def _vision_client() -> OpenAI | None:
             return None
         base_url = os.getenv("OPENAI_BASE_URL")
         return OpenAI(api_key=api_key, base_url=base_url) if base_url else OpenAI(api_key=api_key)
-    # Ollama with vision-capable model
     return OpenAI(base_url=os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434/v1"), api_key="ollama")
 
 
@@ -28,24 +27,19 @@ def _vision_model() -> str:
 
 
 def recognize_expression_vision(image_bytes: bytes) -> str | None:
-    """Return a compact expression like 22+1= or None if vision is unavailable."""
+    """Return a compact expression like (5-2)+10= or None if vision is unavailable."""
     client = _vision_client()
     if client is None:
         return None
 
     b64 = base64.standard_b64encode(image_bytes).decode("ascii")
     prompt = (
-        "Read the handwritten math expression in this image. It may contain several "
-        "digits, operators, and parentheses (e.g. 2+3-5= or (5-2)+10=). "
-        "Reply with ONLY the expression using digits 0-9 and operators + - * / = ( ). "
-        "Read every symbol left to right in order — do not skip, merge, or reorder any "
-        "of them, even if there are several operators or a parenthesized group. "
-        "Adjacent digits with no operator between them are one multi-digit number "
-        "(e.g. '1' next to '0' is 10, not 1 and 0 separately). "
-        "Look carefully at each operator stroke: '-' is a single short horizontal line, "
-        "'*' is two crossing diagonal strokes (an X shape), '+' is a horizontal line crossed "
-        "by a vertical line. Do not confuse '-' with '*' or '+'. "
-        "No spaces, no words, no explanation. Examples: 22+1=  2+3-5=  (5-2)+10="
+        "Read the handwritten math equation left-to-right. "
+        "Use digits 0-9 and operators + - * / and parentheses ( ) and equals =. "
+        "Digits written next to each other with NO operator between them form ONE number "
+        "(e.g. three strokes 1,1,0 means 110 not 1,1,0). "
+        "Reply ONLY with the expression, no spaces, no words. "
+        "Examples: 5+2=  55-3=  110+120=  (5-2)+10="
     )
     try:
         resp = client.chat.completions.create(
@@ -59,31 +53,27 @@ def recognize_expression_vision(image_bytes: bytes) -> str | None:
                     ],
                 }
             ],
-            max_tokens=40,
+            max_tokens=24,
             temperature=0,
         )
     except Exception as e:
-        print(f"[math_vision] vision call failed: {e!r}")
+        print(f"[math_vision] failed: {e!r}")
         return None
 
     raw = (resp.choices[0].message.content or "").strip()
-    print(f"[math_vision] raw model output: {raw!r}")
-    extracted = _extract_expression(raw)
-    print(f"[math_vision] extracted expression: {extracted!r}")
-    return extracted
+    return _extract_expression(raw)
 
 
 def _extract_expression(raw: str) -> str | None:
-    """Pull a compact expression from LLM prose or bare output."""
-    quoted = re.findall(r'"([^"]*\d[^"]*)"', raw)
-    for chunk in quoted:
-        cleaned = re.sub(r"[^0-9+\-*/=().]", "", chunk.replace(" ", ""))
-        if cleaned:
-            return cleaned
-
-    match = re.search(r"(\d+\s*[+\-*/]\s*\d+\s*=)", raw)
-    if match:
-        return re.sub(r"[^0-9+\-*/=().]", "", match.group(1).replace(" ", ""))
+    """Pull a compact expression from LLM output."""
+    # Prefer longest valid expression chunk.
+    candidates: list[str] = []
+    for chunk in re.findall(r"[\d+\-*/=().]+", raw.replace(" ", "")):
+        cleaned = re.sub(r"[^0-9+\-*/=().]", "", chunk)
+        if cleaned and any(c.isdigit() for c in cleaned):
+            candidates.append(cleaned)
+    if candidates:
+        return max(candidates, key=len)
 
     cleaned = re.sub(r"[^0-9+\-*/=().]", "", raw.replace(" ", ""))
     return cleaned or None

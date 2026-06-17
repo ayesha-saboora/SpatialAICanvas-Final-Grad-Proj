@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { createPortal } from 'react-dom'
 import type { Editor } from 'tldraw'
 import { insertTableOnCanvas } from './canvasTable'
 
@@ -16,15 +17,35 @@ export function TablePicker({ editor, isDark }: Props) {
   const [customOpen, setCustomOpen] = useState(false)
   const [customRows, setCustomRows] = useState('4')
   const [customCols, setCustomCols] = useState('5')
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 })
   const wrapRef = useRef<HTMLDivElement>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const updatePos = () => {
+      const btn = btnRef.current
+      if (!btn) return
+      const rect = btn.getBoundingClientRect()
+      setMenuPos({ top: rect.top, left: rect.right + 8 })
+    }
+    updatePos()
+    window.addEventListener('resize', updatePos)
+    window.addEventListener('scroll', updatePos, true)
+    return () => {
+      window.removeEventListener('resize', updatePos)
+      window.removeEventListener('scroll', updatePos, true)
+    }
+  }, [open])
 
   useEffect(() => {
     if (!open) return
     const onDoc = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
-        setOpen(false)
-        setCustomOpen(false)
-      }
+      const target = e.target as Node
+      if (wrapRef.current?.contains(target)) return
+      if ((target as Element).closest?.('.table-picker-menu')) return
+      setOpen(false)
+      setCustomOpen(false)
     }
     document.addEventListener('mousedown', onDoc)
     return () => document.removeEventListener('mousedown', onDoc)
@@ -49,9 +70,70 @@ export function TablePicker({ editor, isDark }: Props) {
   const label =
     hover.rows > 0 && hover.cols > 0 ? `${hover.cols}×${hover.rows} Table` : 'Insert table'
 
+  const menu = open ? (
+    <div
+      className={`table-picker-menu table-picker-portal ${isDark ? 'table-picker-dark' : ''}`}
+      style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, zIndex: 9000 }}
+    >
+      <p className="table-picker-label">{label}</p>
+      <div className="table-picker-grid" onMouseLeave={() => setHover({ rows: 0, cols: 0 })}>
+        {Array.from({ length: GRID_ROWS }, (_, row) =>
+          Array.from({ length: GRID_COLS }, (_, col) => {
+            const r = row + 1
+            const c = col + 1
+            const active = r <= hover.rows && c <= hover.cols
+            return (
+              <button
+                key={`${row}-${col}`}
+                type="button"
+                className={`table-picker-cell ${active ? 'table-picker-cell-active' : ''}`}
+                aria-label={`${c} by ${r} table`}
+                onMouseEnter={() => setHover({ rows: r, cols: c })}
+                onClick={() => insert(r, c)}
+              />
+            )
+          }),
+        )}
+      </div>
+      <button
+        type="button"
+        className="table-picker-custom-toggle"
+        onClick={() => setCustomOpen(!customOpen)}
+      >
+        Custom size…
+      </button>
+      {customOpen && (
+        <form className="table-picker-custom" onSubmit={onCustomSubmit}>
+          <label>
+            Rows
+            <input
+              type="number"
+              min={1}
+              max={20}
+              value={customRows}
+              onChange={(e) => setCustomRows(e.target.value)}
+            />
+          </label>
+          <label>
+            Columns
+            <input
+              type="number"
+              min={1}
+              max={20}
+              value={customCols}
+              onChange={(e) => setCustomCols(e.target.value)}
+            />
+          </label>
+          <button type="submit">Insert</button>
+        </form>
+      )}
+    </div>
+  ) : null
+
   return (
     <div className="table-picker-wrap" ref={wrapRef}>
       <button
+        ref={btnRef}
         type="button"
         className={`ws-btn ${open ? 'ws-btn-active' : ''}`}
         onClick={() => editor && setOpen(!open)}
@@ -64,66 +146,7 @@ export function TablePicker({ editor, isDark }: Props) {
         </svg>
         <span className="ws-rail-label">Table</span>
       </button>
-
-      {open && (
-        <div className={`table-picker-menu ${isDark ? 'table-picker-dark' : ''}`}>
-          <p className="table-picker-label">{label}</p>
-          <div
-            className="table-picker-grid"
-            onMouseLeave={() => setHover({ rows: 0, cols: 0 })}
-          >
-            {Array.from({ length: GRID_ROWS }, (_, row) =>
-              Array.from({ length: GRID_COLS }, (_, col) => {
-                const r = row + 1
-                const c = col + 1
-                const active = r <= hover.rows && c <= hover.cols
-                return (
-                  <button
-                    key={`${row}-${col}`}
-                    type="button"
-                    className={`table-picker-cell ${active ? 'table-picker-cell-active' : ''}`}
-                    aria-label={`${c} by ${r} table`}
-                    onMouseEnter={() => setHover({ rows: r, cols: c })}
-                    onClick={() => insert(r, c)}
-                  />
-                )
-              }),
-            )}
-          </div>
-          <button
-            type="button"
-            className="table-picker-custom-toggle"
-            onClick={() => setCustomOpen(!customOpen)}
-          >
-            Insert Table…
-          </button>
-          {customOpen && (
-            <form className="table-picker-custom" onSubmit={onCustomSubmit}>
-              <label>
-                Rows
-                <input
-                  type="number"
-                  min={1}
-                  max={20}
-                  value={customRows}
-                  onChange={(e) => setCustomRows(e.target.value)}
-                />
-              </label>
-              <label>
-                Columns
-                <input
-                  type="number"
-                  min={1}
-                  max={20}
-                  value={customCols}
-                  onChange={(e) => setCustomCols(e.target.value)}
-                />
-              </label>
-              <button type="submit">OK</button>
-            </form>
-          )}
-        </div>
-      )}
+      {menu && createPortal(menu, document.body)}
     </div>
   )
 }

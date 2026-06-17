@@ -83,10 +83,23 @@ def _load_model() -> tuple[nn.Module, list[str]]:
 
 
 def _to_ink_grayscale(image: Image.Image) -> Image.Image:
-    """Any pen color on white canvas -> grayscale ink."""
+    """Pen strokes on light OR dark canvas → grayscale ink (dark on white)."""
     rgb = image.convert("RGB")
     arr = np.array(rgb)
-    return Image.fromarray(arr.min(axis=2).astype(np.uint8), mode="L")
+    # Sample corners to detect dark-background exports (dark mode canvas).
+    corners = np.concatenate([
+        arr[:8, :8].reshape(-1, 3),
+        arr[:8, -8:].reshape(-1, 3),
+        arr[-8:, :8].reshape(-1, 3),
+        arr[-8:, -8:].reshape(-1, 3),
+    ])
+    bg_brightness = float(corners.mean())
+    if bg_brightness < 128:
+        # White/light strokes on dark bg → invert to dark ink on white.
+        gray = 255 - arr.max(axis=2)
+    else:
+        gray = arr.min(axis=2)
+    return Image.fromarray(gray.astype(np.uint8), mode="L")
 
 
 def _preprocess_image(image: Image.Image, *, pad: int = 6, thicken: int = 2) -> Image.Image:
@@ -109,13 +122,55 @@ def _preprocess_image(image: Image.Image, *, pad: int = 6, thicken: int = 2) -> 
 
 
 def _preprocess_variants(image: Image.Image) -> list[Image.Image]:
-    """Multiple crops/thickenings for test-time augmentation."""
+    """Two crops for fast inference with reasonable accuracy."""
     return [
-        _preprocess_image(image, pad=4, thicken=1),
         _preprocess_image(image, pad=6, thicken=2),
         _preprocess_image(image, pad=8, thicken=2),
-        _preprocess_image(image, pad=10, thicken=3),
     ]
+
+
+def predict_math_symbols_batch(crops: list[Image.Image]) -> list[dict]:
+    """Classify multiple symbol crops in one batched forward pass."""
+    if not crops:
+        return []
+    if len(crops) == 1:
+        buf = BytesIO()
+        crops[0].save(buf, format="PNG")
+        return [predict_math_symbol(buf.getvalue())]
+
+    model, labels = _load_model()
+    tensors = []
+    for crop in crops:
+        for variant in _preprocess_variants(crop):
+            tensors.append(_eval_transform(variant))
+
+    batch = torch.stack(tensors).to(_device)
+    n_crops = len(crops)
+    n_variants = len(tensors) // n_crops
+
+    with torch.no_grad():
+        logits = model(batch)
+        probs = torch.softmax(logits, dim=1)
+
+    results: list[dict] = []
+    for i in range(n_crops):
+        crop_probs = probs[i * n_variants : (i + 1) * n_variants].mean(dim=0)
+        idx = int(crop_probs.argmax().item())
+        confidence = float(crop_probs[idx].item())
+        top3 = torch.topk(crop_probs, k=min(3, len(labels)))
+        alternatives = [
+            {"symbol": labels[int(j)], "confidence": round(float(p), 4)}
+            for p, j in zip(top3.values.tolist(), top3.indices.tolist())
+        ]
+        symbol = labels[idx] if 0 <= idx < len(labels) else "?"
+        if confidence < 0.42 and len(top3.indices) > 1:
+            alt_idx = int(top3.indices[1].item())
+            alt_conf = float(crop_probs[alt_idx].item())
+            if alt_conf > confidence * 0.88:
+                symbol = labels[alt_idx]
+                confidence = alt_conf
+        results.append({"symbol": symbol, "confidence": round(confidence, 4), "alternatives": alternatives})
+    return results
 
 
 def predict_math_symbol(image_bytes: bytes) -> dict[str, float | str | list[dict[str, float | str]]]:

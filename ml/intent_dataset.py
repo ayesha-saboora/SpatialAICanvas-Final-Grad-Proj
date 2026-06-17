@@ -72,10 +72,13 @@ PAPER = ["this research paper", "this thesis chapter", "this conference paper",
          "this journal article", "this preprint"]
 STUDY_TOPIC = ["compiler design", "MPI", "OpenCL", "CUDA", "operating systems",
                "cryptography", "computer networks", "database systems", "machine learning",
-               "digital logic"]
+               "digital logic", "data structures", "algorithm analysis"]
 PROCESS = ["binary search", "glycolysis", "the TCP handshake", "DNA replication", "gradient descent",
            "the compilation pipeline", "a login system", "bubble sort", "the water cycle",
-           "photosynthesis", "the cardiac cycle", "Dijkstra's algorithm"]
+           "photosynthesis", "the cardiac cycle", "Dijkstra's algorithm",
+           "BST insertion order", "hash table collision resolution", "A* pathfinding",
+           "CPU scheduling FCFS SJF Round Robin", "TCP connection lifecycle",
+           "compiler pipeline stages", "open addressing vs chaining"]
 ANATOMY = ["the human heart", "a neuron", "a plant cell", "the nephron", "a mitochondrion",
            "the human eye", "a BJT transistor", "the benzene ring", "a four-stroke engine",
            "the respiratory system"]
@@ -428,6 +431,24 @@ SEED: list[tuple[str, str]] = [
     ("Explain blockchain consensus.", "EXPLAIN_CONCEPT"),
     ("Verify mathematical induction proof.", "VERIFY_REASONING"),
     ("Generate exam-level challenges.", "GENERATE_PRACTICE_PROBLEMS"),
+    # ---- STEM canvas format training (BST, hash, A*, scheduling, TCP, compiler) ----
+    ("Show BST formed by inserting 1,2,3,4,5,6,7 and 4,2,6,1,3,5,7", "DRAW_LABELED_DIAGRAM"),
+    ("Draw degenerated vs balanced BST for insertion orders", "DRAW_LABELED_DIAGRAM"),
+    ("Plot lookup cost vs load factor for hash tables", "GRAPH_FUNCTION"),
+    ("Graph open addressing vs chaining as load factor increases", "GRAPH_FUNCTION"),
+    ("Compare A* and Dijkstra search expansion on the same grid", "DRAW_FLOWCHART"),
+    ("Draw a flowchart comparing A* vs Dijkstra pathfinding", "DRAW_FLOWCHART"),
+    ("Compare FCFS SJF and Round Robin for P1=10ms P2=4ms P3=2ms", "DRAW_FLOWCHART"),
+    ("Draw Gantt chart for CPU scheduling FCFS SJF Round Robin", "DRAW_FLOWCHART"),
+    ("Draw the TCP three-way handshake flowchart with retransmission", "DRAW_FLOWCHART"),
+    ("Flowchart the TCP connection lifecycle from SYN to FIN", "DRAW_FLOWCHART"),
+    ("Draw the compiler pipeline from source code to machine code", "DRAW_FLOWCHART"),
+    ("Show compiler stages: lexical parser semantic optimizer codegen", "DRAW_FLOWCHART"),
+    ("Explain BST degeneration when inserting sorted keys", "EXPLAIN_CONCEPT"),
+    ("When load factor approaches 1 compare open addressing and chaining", "COMPARE_METHODS"),
+    ("Compare Dijkstra and A* on the same grid", "COMPARE_METHODS"),
+    ("Explain TCP handshake and packet retransmission", "EXPLAIN_CONCEPT"),
+    ("Explain the compiler pipeline stages", "EXPLAIN_CONCEPT"),
 ]
 
 

@@ -13,13 +13,27 @@ import { renderGraphToDataUrl, type GraphSpec } from './graphPlot'
 import { TablePicker } from './TablePicker'
 import { PlantTimer } from './PlantTimer'
 import { SignAccessibilityPanel, type SignAccessMode } from './SignAccessibilityPanel'
-import { clusterBounds, formatMathAnswer, recognizeDrawnMath, type MathSymbolResult } from './mathRecognize'
+import { formatMathAnswer, getMathAnswerOrigin, recognizeDrawnMath, type MathSymbolResult } from './mathRecognize'
 import {
-  CANVAS_BOARD_COLOR,
+  placeSolutionOnCanvas,
+  parseSolutionFromExplanation,
+  buildFallbackSolution,
+  isSolvePrompt,
+  type SolutionPayload,
+} from './canvasSolution'
+import {
+  placeStemExplanationOnCanvas,
+  buildStemFromExplanation,
+  type StemPayload,
+} from './canvasStemFormat'
+import {
+  applyCanvasTheme,
+  CANVAS_BOARD_DARK,
+  CANVAS_BOARD_LIGHT,
   diagramArrowColor,
   diagramEdgeLabelColor,
   diagramTitleColor,
-  restoreCanvasContrastForLightBoard,
+  mathAnswerColor,
 } from './canvasTheme'
 import {
   STUDY_CANVAS_COMPONENTS,
@@ -27,6 +41,7 @@ import {
   STUDY_CANVAS_SHAPE_UTILS,
   STUDY_CANVAS_TOOLS,
   setupStudyCanvasEditor,
+  setCanvasUiTheme,
 } from './tldrawConfig'
 
 type AuthMode = 'login' | 'signup'
@@ -285,8 +300,8 @@ function formatApiError(detail: unknown): string {
 }
 
 const WS_THEMES = {
-  light: { board: CANVAS_BOARD_COLOR, grid: '#cce0f0', margin: '#e8a0a0', text: '#1a1a1a' },
-  dark: { board: CANVAS_BOARD_COLOR, grid: '#2a3a5c', margin: '#5c3a3a', text: '#d4d4e0' },
+  light: { board: CANVAS_BOARD_LIGHT, grid: 'rgba(168,85,247,0.22)', gridMinor: 'rgba(168,85,247,0.09)', text: '#1a1a1a' },
+  dark: { board: CANVAS_BOARD_DARK, grid: 'rgba(168,85,247,0.35)', gridMinor: 'rgba(168,85,247,0.14)', text: '#fafafa' },
 }
 
 const apiFetch = async (path: string, opts: RequestInit = {}) => {
@@ -442,8 +457,9 @@ export default function App() {
 
   useEffect(() => {
     if (!canvasEditor) return
-    restoreCanvasContrastForLightBoard(canvasEditor)
-  }, [canvasEditor])
+    setCanvasUiTheme(isDarkUi ? 'dark' : 'light')
+    applyCanvasTheme(canvasEditor, isDarkUi ? 'dark' : 'light')
+  }, [canvasEditor, isDarkUi])
 
   const scrollToAuth = () => {
     authSectionRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -458,7 +474,8 @@ export default function App() {
   const onMount = (editor: Editor) => {
     editorRef.current = editor
     setCanvasEditor(editor)
-    setupStudyCanvasEditor(editor)
+    setCanvasUiTheme(isDarkUi ? 'dark' : 'light')
+    setupStudyCanvasEditor(editor, isDarkUi ? 'dark' : 'light')
     ;(editor as unknown as { updateInstanceState: (d: object) => void }).updateInstanceState({ isGridMode: true })
     editor.store.listen(() => {
       const ids = editor.getSelectedShapeIds().map(String)
@@ -466,7 +483,7 @@ export default function App() {
         pinnedSelectionRef.current = resolveSelectionIds(editor, ids)
       }
     }, { source: 'user', scope: 'session' })
-    restoreCanvasContrastForLightBoard(editor)
+    applyCanvasTheme(editor, isDarkUi ? 'dark' : 'light')
     const pending = pendingDiagramRef.current
     if (pending) {
       pendingDiagramRef.current = null
@@ -811,10 +828,16 @@ export default function App() {
     try {
       const projectKey = selectedProjectId ?? 'default'
       const storedDocs = projectDocumentsRef.current.get(projectKey) ?? []
+      const q = prompt.toLowerCase()
+      const needsImages =
+        /\b(image|picture|photo|screenshot|see in|look at|what does this show|describe the|pdf page|what is this|what's in)\b/.test(q)
+        || /\b(document|pdf|uploaded|my notes|the file|from the reading|in the text)\b/.test(q)
+        || pinnedSelectionRef.current.length > 0
       const spatial = editorRef.current
         ? await collectSpatialContext(editorRef.current, {
             pinnedSelectionIds: pinnedSelectionRef.current,
             storedDocuments: storedDocs,
+            includeImages: needsImages,
           })
         : {
             canvas_shapes: [],
@@ -825,6 +848,19 @@ export default function App() {
             document_text: '',
             canvas_images: [],
           }
+
+      const isSolveRequest = isSolvePrompt(prompt)
+
+      // Diagram follow-ups and math solves should not pull stale board/document context.
+      if (options?.generateVisual || isSolveRequest) {
+        spatial.canvas_summary = ''
+        spatial.canvas_edges = []
+        spatial.canvas_shapes = []
+        spatial.selected_labels = []
+        spatial.selected_shape_ids = []
+        spatial.document_text = ''
+        spatial.canvas_images = []
+      }
 
       const res = await apiFetch('/ai/explain-stream', {
         method: 'POST',
@@ -847,6 +883,9 @@ export default function App() {
       let buffer = ''
       let finalExplanation = ''
       let finalDiagram: DiagramData | null = null
+      let finalSolution: SolutionPayload | null = null
+      let finalStem: StemPayload | null = null
+      let responseMode = ''
       let receivedDone = false
       let errorMessage = ''
       let shouldOfferVisual = false
@@ -871,6 +910,9 @@ export default function App() {
             visual_steps?: string[]
             message?: string
             offer_visual?: boolean
+            mode?: string
+            solution?: SolutionPayload | null
+            stem?: StemPayload | null
           }
           try {
             parsed = JSON.parse(json)
@@ -882,6 +924,13 @@ export default function App() {
             finalExplanation = parsed.explanation ?? ''
             finalDiagram = parsed.diagram ?? null
             shouldOfferVisual = Boolean(parsed.offer_visual)
+            responseMode = parsed.mode ?? ''
+            if (parsed.solution?.steps?.length) {
+              finalSolution = parsed.solution
+            }
+            if (parsed.stem?.blocks?.length || parsed.stem?.tests?.length) {
+              finalStem = parsed.stem
+            }
           } else if (parsed.type === 'error') {
             errorMessage = parsed.message ?? 'AI request failed'
           }
@@ -903,20 +952,50 @@ export default function App() {
             : finalDiagram.nodes?.length
         ),
       )
-      const suffix = hasDiagram ? '\n\n[Visual added to canvas]' : ''
       const finalText = (finalExplanation || '').trim()
+
+      const isSolveMode = responseMode === 'solve_step' || responseMode === 'solve_numerical' || isSolvePrompt(prompt)
+      let solutionPayload = finalSolution
+      if (!solutionPayload && finalText && isSolveMode) {
+        solutionPayload = parseSolutionFromExplanation(finalText) ?? buildFallbackSolution(finalText, prompt)
+      }
+
+      let canvasNote = ''
+      const stemPayload = (!isSolveMode && (finalStem ?? (finalText ? buildStemFromExplanation(finalText) : null))) || null
+
+      if (editorRef.current) {
+        if (hasDiagram && finalDiagram) {
+          drawVisualOnCanvas(finalDiagram)
+          canvasNote = 'visual'
+        }
+
+        if (isSolveMode && solutionPayload?.steps?.length) {
+          const ids = placeSolutionOnCanvas(editorRef.current, solutionPayload, isDarkUi, prompt, true)
+          if (ids.length > 0) canvasNote = 'solution'
+        } else if (stemPayload && (stemPayload.blocks.length > 0 || stemPayload.tests.length > 0)) {
+          const ids = placeStemExplanationOnCanvas(editorRef.current, stemPayload, isDarkUi)
+          if (ids.length > 0) {
+            canvasNote = canvasNote === 'visual' ? 'visual+explanation' : 'explanation'
+          }
+        }
+      } else if (hasDiagram && finalDiagram) {
+        pendingDiagramRef.current = { diagram: finalDiagram }
+        canvasNote = 'visual'
+      }
+
+      const solutionSuffix = canvasNote === 'solution' ? '\n\n[Solution notes added to canvas]' : ''
+      const stemSuffix = canvasNote === 'explanation' || canvasNote === 'visual+explanation'
+        ? '\n\n[Explanation cards added to canvas]' : ''
+      const visualSuffix = hasDiagram && finalDiagram ? '\n\n[Visual added to canvas]' : ''
+      const canvasSuffix = solutionSuffix + stemSuffix + visualSuffix
       if (finalText) {
-        replaceAssistant(finalText + suffix)
+        replaceAssistant(finalText + canvasSuffix)
       } else {
         removeAssistantPlaceholder()
       }
 
       setVisualOffer(shouldOfferVisual && !hasDiagram)
 
-      if (hasDiagram && finalDiagram) {
-        if (editorRef.current) drawVisualOnCanvas(finalDiagram)
-        else pendingDiagramRef.current = { diagram: finalDiagram }
-      }
     } catch (error) {
       removeAssistantPlaceholder()
       setAiError(error instanceof Error ? error.message : 'Unexpected error')
@@ -925,7 +1004,12 @@ export default function App() {
 
   const requestVisual = (visualType: VisualType) => {
     const label = visualType === 'labeled_diagram' ? 'labeled diagram' : visualType
-    void submitPrompt(`Draw a ${label} on my canvas for what we just discussed.`, {
+    const lastAssistant = [...chatHistory].reverse().find(
+      (m) => m.role === 'assistant' && m.content.trim().length > 20,
+    )
+    const topic = lastAssistant?.content.replace(/\s+/g, ' ').trim().slice(0, 300) ?? ''
+    const hint = topic ? ` Topic: ${topic}` : ''
+    void submitPrompt(`Draw a ${label} on my canvas for what we just discussed.${hint}`, {
       generateVisual: true,
       visualType,
     })
@@ -940,7 +1024,7 @@ export default function App() {
         type: 'text',
         x: origin.x,
         y: origin.y,
-        props: { richText: toRichText(text), size, color: 'black' },
+        props: { richText: toRichText(text), size, color: mathAnswerColor(isDarkUi) },
       },
     ])
     zoomToShapes(editor, [id])
@@ -957,15 +1041,21 @@ export default function App() {
     return res.json()
   }
 
-  const predictMathExpression = async (image: Blob): Promise<{ expression: string; symbols: MathSymbolResult[] }> => {
+  const predictMathExpression = async (
+    image: Blob,
+    symbolImages: Blob[],
+  ): Promise<{ expression: string; symbols: MathSymbolResult[]; result?: string | null }> => {
     const form = new FormData()
     form.append('file', image, 'expression.png')
+    for (let i = 0; i < symbolImages.length; i++) {
+      form.append('symbols', symbolImages[i], `sym${i}.png`)
+    }
     const res = await apiFetch('/math/recognize-expression', { method: 'POST', body: form })
     if (!res.ok) {
       const err = await res.text().catch(() => '')
       throw new Error(err || `Math recognition failed (${res.status})`)
     }
-    return res.json() as Promise<{ expression: string; symbols: MathSymbolResult[] }>
+    return res.json() as Promise<{ expression: string; symbols: MathSymbolResult[]; result?: string | null }>
   }
 
   const handleRecognizeMath = async () => {
@@ -973,21 +1063,14 @@ export default function App() {
     if (!editor || mathRecognizing) return
     setMathRecognizing(true)
     try {
-      let outcome = await recognizeDrawnMath(editor, predictMathExpression)
-      let answer = outcome ? formatMathAnswer(outcome.result) : null
-      if (!answer) {
-        // Vision reads can be non-deterministic — one retry recovers most misreads.
-        outcome = await recognizeDrawnMath(editor, predictMathExpression)
-        answer = outcome ? formatMathAnswer(outcome.result) : null
-      }
+      const outcome = await recognizeDrawnMath(editor, predictMathExpression)
       if (!outcome) return
+      const answer = formatMathAnswer(outcome.result)
       const editor2 = editorRef.current
       if (!editor2) return
-      const bounds = clusterBounds(editor, outcome.shapeIds)
-      const origin = bounds
-        ? { x: bounds.maxX + 24, y: bounds.minY }
-        : getNextDiagramOrigin(editor2)
+      const origin = getMathAnswerOrigin(editor, outcome.shapeIds) ?? getNextDiagramOrigin(editor2)
       const id = createShapeId()
+      const ink = mathAnswerColor(isDarkUi)
       editor2.createShapes([
         {
           id,
@@ -995,15 +1078,33 @@ export default function App() {
           x: origin.x,
           y: origin.y,
           props: {
-            richText: toRichText(answer ?? "Couldn't read that — try writing larger and clearer"),
+            richText: toRichText(answer ?? "Couldn't read — write larger, one symbol at a time"),
             size: answer ? 'xl' : 'm',
-            color: answer ? 'black' : 'red',
+            color: answer ? ink : 'red',
           },
         },
       ])
       zoomToShapes(editor2, [id])
-    } catch {
-      /* silent — nothing placed on canvas */
+    } catch (err) {
+      const editor2 = editorRef.current
+      if (editor2) {
+        const id = createShapeId()
+        const origin = getNextDiagramOrigin(editor2)
+        editor2.createShapes([
+          {
+            id,
+            type: 'text',
+            x: origin.x,
+            y: origin.y,
+            props: {
+              richText: toRichText('Math error — try again'),
+              size: 'm',
+              color: 'red',
+            },
+          },
+        ])
+      }
+      console.error('[math]', err)
     } finally {
       setMathRecognizing(false)
     }
@@ -1573,13 +1674,13 @@ export default function App() {
         </button>
 
         <button
-          className={`ws-rail-btn ${mathRecognizing ? 'ws-rail-active' : ''}`}
+          className={`ws-rail-btn ${mathRecognizing ? 'ws-rail-active ws-rail-busy' : ''}`}
           onClick={() => void handleRecognizeMath()}
           disabled={mathRecognizing}
           title="Recognize handwritten math"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 13l3-8 2 4 2-3 3 7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/><path d="M3 13h10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
-          <span className="ws-rail-label">Math</span>
+          <span className="ws-rail-label">{mathRecognizing ? '…' : 'Math'}</span>
         </button>
 
         <div className="ws-rail-divider" />
@@ -1606,8 +1707,12 @@ export default function App() {
         <PlantTimer isDark={isDark} projectId={selectedProjectId} />
       </aside>
 
-      <section className={`canvas-wrap ${isDraggingFile ? 'canvas-wrap-dropping' : ''} ${stylesOpen ? 'styles-open' : ''}`}
-        style={{ '--board-color': activeTheme.board } as CSSProperties}
+      <section className={`canvas-wrap ${isDark ? 'canvas-dark' : 'canvas-light'} ${isDraggingFile ? 'canvas-wrap-dropping' : ''} ${stylesOpen ? 'styles-open' : ''}`}
+        style={{
+          '--board-color': activeTheme.board,
+          '--grid-major': activeTheme.grid,
+          '--grid-minor': activeTheme.gridMinor,
+        } as CSSProperties}
         onDrop={onCanvasDrop} onDragOver={onCanvasDragOver} onDragLeave={onCanvasDragLeave}>
         {isDraggingFile && <div className="drop-overlay"><span>Drop file here</span></div>}
         <Tldraw

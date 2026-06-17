@@ -2,8 +2,9 @@
 Train handwritten math symbol classifier (digits + operators).
 
 Uses real handwritten samples from datasets/math_external (digits and
-most operators) plus a synthetic generator for symbols with no real
-samples available (currently just '*').
+most operators) plus optional extra digit samples from
+datasets/math_external/math numbers dataset (0-9) only, merged into
+digit classes 0-9. Synthetic generator fills in '*' when needed.
 Outputs:
   backend/models/math_model.pth
   backend/models/math_labels.json
@@ -39,6 +40,7 @@ CM_OUT = Path(__file__).resolve().parent / "math_confusion_matrix.png"
 CACHE_DIR = ROOT / "datasets" / "math"
 SYNTH_DIR = CACHE_DIR / "synthetic"
 EXTERNAL_DIR = ROOT / "datasets" / "math_external" / "Handwritten math symbols dataset"
+DIGITS_EXTRA_DIR = ROOT / "datasets" / "math_external" / "math numbers dataset (0-9) only"
 
 DIGIT_SYMBOLS = [str(i) for i in range(10)]
 OPERATOR_SYMBOLS = ["+", "-", "*", "/", "=", "(", ")"]
@@ -81,8 +83,19 @@ def ensure_synthetic_cache(samples_per_operator: int, synthetic_symbols: list[st
             generate_synthetic_symbol(sym).save(sym_dir / f"{len(existing) + i:05d}.png")
 
 
+def symbol_folders(sym: str, external_dirs: list[Path]) -> list[Path]:
+    """Resolve one or more on-disk folders for a symbol across dataset roots."""
+    folder_name = EXTERNAL_FOLDER[sym]
+    found: list[Path] = []
+    for root in external_dirs:
+        candidate = root / folder_name
+        if candidate.is_dir():
+            found.append(candidate)
+    return found
+
+
 class FolderDataset(Dataset):
-    """Loads raw (un-transformed) grayscale symbol images from a folder.
+    """Loads raw (un-transformed) grayscale symbol images from folder(s).
 
     Returns (PIL.Image, label) pairs so callers can layer canvas-export
     augmentation before the final tensor transform.
@@ -90,14 +103,18 @@ class FolderDataset(Dataset):
 
     def __init__(
         self,
-        folder: Path,
+        folder: Path | list[Path],
         label: int,
         train: bool,
         thicken: bool = False,
         split: float = 0.85,
         max_total: int | None = None,
     ):
-        paths = sorted(folder.glob("*.png")) + sorted(folder.glob("*.jpg"))
+        folders = [folder] if isinstance(folder, Path) else list(folder)
+        paths: list[Path] = []
+        for f in folders:
+            paths.extend(sorted(f.glob("*.png")) + sorted(f.glob("*.jpg")))
+        paths.sort(key=lambda p: str(p))
         if max_total is not None and len(paths) > max_total:
             paths = random.sample(paths, max_total)
             paths.sort()
@@ -314,7 +331,7 @@ class CanvasAugmentedDataset(Dataset):
 
 def build_datasets(
     symbols: list[str],
-    external_dir: Path,
+    external_dirs: list[Path],
     samples_per_operator: int = 800,
     max_per_class: int = 3000,
 ):
@@ -344,9 +361,14 @@ def build_datasets(
             train_base = FolderDataset(folder, label, train=True, thicken=True)
             test_base = FolderDataset(folder, label, train=False, thicken=True)
         else:
-            folder = external_dir / EXTERNAL_FOLDER[sym]
-            train_base = FolderDataset(folder, label, train=True, split=0.9, max_total=max_per_class)
-            test_base = FolderDataset(folder, label, train=False, split=0.9, max_total=max_per_class)
+            folders = symbol_folders(sym, external_dirs)
+            if not folders:
+                raise FileNotFoundError(
+                    f"No folder for symbol '{sym}' under: "
+                    + ", ".join(str(d) for d in external_dirs)
+                )
+            train_base = FolderDataset(folders, label, train=True, split=0.9, max_total=max_per_class)
+            test_base = FolderDataset(folders, label, train=False, split=0.9, max_total=max_per_class)
 
         train_parts.append(TransformDataset(CanvasAugmentedDataset(train_base, train=True), train_tf))
         test_parts.append(TransformDataset(test_base, eval_tf))
@@ -439,6 +461,17 @@ def main() -> None:
     parser.add_argument("--max-per-class", type=int, default=3000)
     parser.add_argument("--digits-only", action="store_true")
     parser.add_argument("--data-dir", type=Path, default=EXTERNAL_DIR)
+    parser.add_argument(
+        "--extra-data-dir",
+        type=Path,
+        default=DIGITS_EXTRA_DIR,
+        help="Second dataset root merged into digit classes (0-9).",
+    )
+    parser.add_argument(
+        "--no-extra-data",
+        action="store_true",
+        help="Train from --data-dir only (do not merge extra digit dataset).",
+    )
     args = parser.parse_args()
 
     random.seed(42)
@@ -446,9 +479,15 @@ def main() -> None:
     torch.manual_seed(42)
 
     symbols = DIGIT_SYMBOLS if args.digits_only else SYMBOLS
-    train_ds, test_ds = build_datasets(symbols, args.data_dir, args.samples_per_operator, args.max_per_class)
+    external_dirs = [args.data_dir]
+    if not args.no_extra_data and args.extra_data_dir.is_dir():
+        if args.extra_data_dir.resolve() != args.data_dir.resolve():
+            external_dirs.append(args.extra_data_dir)
+    train_ds, test_ds = build_datasets(
+        symbols, external_dirs, args.samples_per_operator, args.max_per_class
+    )
     print(f"Classes ({len(symbols)}): {symbols}")
-    print(f"Data dir: {args.data_dir}")
+    print(f"Data dirs: {[str(d) for d in external_dirs]}")
     print(f"Train size: {len(train_ds)}  Test size: {len(test_ds)}")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

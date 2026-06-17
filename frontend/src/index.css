@@ -2128,6 +2128,19 @@ button { font-family: inherit; cursor: pointer; }
   overflow: hidden;
   background: #1f2937;
   flex-shrink: 0;
+  position: relative;
+}
+.sign-hand-guide {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 55%;
+  height: 72%;
+  transform: translate(-50%, -50%);
+  border: 2px dashed rgba(251, 91, 60, 0.85);
+  border-radius: 12px;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 .sign-camera {
   width: 100%;

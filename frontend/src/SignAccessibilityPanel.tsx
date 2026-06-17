@@ -34,8 +34,18 @@ const QUICK_PHRASES: string[] = [
   'Thank you',
 ]
 
-const CONFIDENCE_MIN = 0.72
-const VOTE_FRAME_MIN = 0.55
+const SHORTCUT_LETTERS = new Set(SHORTCUT_GUIDE.map((s) => s.letter))
+
+// Shortcut mode: only F G A C U H may trigger; require stable unanimous votes.
+const CONFIDENCE_MIN_SHORTCUT = 0.24
+const CONFIDENCE_MIN_AAC = 0.20
+const VOTE_FRAME_MIN = 0.0
+const CAPTURE_OUT_SIZE = 384
+// Must match .sign-hand-guide in index.css: centered box 55% × 72%
+const GUIDE_X = 0.225
+const GUIDE_Y = 0.14
+const GUIDE_W = 0.55
+const GUIDE_H = 0.72
 const VOTE_FRAMES = 3
 const DEBOUNCE_MS = 1500
 const CAMERA_TIMEOUT_MS = 15000
@@ -59,32 +69,64 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => window.setTimeout(r, ms))
 }
 
-function captureCenterCrop(video: HTMLVideoElement): Promise<Blob> {
+function captureFrameForModel(video: HTMLVideoElement): Promise<Blob> {
   const vw = video.videoWidth
   const vh = video.videoHeight
   if (!vw || !vh) return Promise.reject(new Error('Video not ready'))
 
-  const canvas = document.createElement('canvas')
-  canvas.width = 224
-  canvas.height = 224
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return Promise.reject(new Error('Canvas unavailable'))
+  const dw = video.clientWidth || 320
+  const dh = video.clientHeight || 200
 
-  const crop = Math.min(vw, vh) * 0.82
-  const sx = (vw - crop) / 2
-  const sy = (vh - crop) / 2
-  ctx.drawImage(video, sx, sy, crop, crop, 0, 0, 224, 224)
+  // object-fit: cover — same layout as .sign-camera on screen
+  const coverScale = Math.max(dw / vw, dh / vh)
+  const renderedW = vw * coverScale
+  const renderedH = vh * coverScale
+  const offsetX = (dw - renderedW) / 2
+  const offsetY = (dh - renderedH) / 2
+
+  const stage = document.createElement('canvas')
+  stage.width = dw
+  stage.height = dh
+  const stageCtx = stage.getContext('2d')
+  if (!stageCtx) return Promise.reject(new Error('Canvas unavailable'))
+  stageCtx.drawImage(video, 0, 0, vw, vh, offsetX, offsetY, renderedW, renderedH)
+
+  // Mirror to match scaleX(-1) selfie preview
+  const mirrored = document.createElement('canvas')
+  mirrored.width = dw
+  mirrored.height = dh
+  const mirrorCtx = mirrored.getContext('2d')
+  if (!mirrorCtx) return Promise.reject(new Error('Canvas unavailable'))
+  mirrorCtx.translate(dw, 0)
+  mirrorCtx.scale(-1, 1)
+  mirrorCtx.drawImage(stage, 0, 0)
+
+  // Crop exactly the orange guide box the user aligns their hand with
+  const gx = dw * GUIDE_X
+  const gy = dh * GUIDE_Y
+  const gw = dw * GUIDE_W
+  const gh = dh * GUIDE_H
+
+  const out = document.createElement('canvas')
+  out.width = CAPTURE_OUT_SIZE
+  out.height = CAPTURE_OUT_SIZE
+  const outCtx = out.getContext('2d')
+  if (!outCtx) return Promise.reject(new Error('Canvas unavailable'))
+  outCtx.drawImage(mirrored, gx, gy, gw, gh, 0, 0, CAPTURE_OUT_SIZE, CAPTURE_OUT_SIZE)
 
   return new Promise((resolve, reject) => {
-    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Capture failed'))), 'image/jpeg', 0.92)
+    out.toBlob((b) => (b ? resolve(b) : reject(new Error('Capture failed'))), 'image/jpeg', 0.93)
   })
 }
 
-function majorityVote(results: PredictResult[]): PredictResult | null {
+function majorityVote(results: PredictResult[], allowed?: Set<string>): PredictResult | null {
+  if (results.length === 0) return null
+
   const tallies = new Map<string, { count: number; confSum: number }>()
   for (const r of results) {
     if (r.confidence < VOTE_FRAME_MIN) continue
     const L = r.letter.toUpperCase()
+    if (allowed && !allowed.has(L)) continue
     const row = tallies.get(L) ?? { count: 0, confSum: 0 }
     row.count += 1
     row.confSum += r.confidence
@@ -97,8 +139,15 @@ function majorityVote(results: PredictResult[]): PredictResult | null {
       best = { letter, count: row.count, conf }
     }
   }
-  if (!best || best.count < 2) return null
-  return { letter: best.letter, confidence: best.conf }
+  if (!best) return null
+
+  const unanimous = best.count === results.length
+  const minConf = allowed ? 0.24 : 0.20
+  if (!unanimous || best.count < 2) return null
+  if (best.conf >= minConf) {
+    return { letter: best.letter, confidence: best.conf }
+  }
+  return null
 }
 
 function isVirtualCamera(label: string): boolean {
@@ -283,7 +332,7 @@ export function SignAccessibilityPanel({
           allCams = await listVideoDevices()
           setCameraOn(true)
           setCameraError('')
-          setStatus('Hold your sign in frame, then tap Capture sign.')
+          setStatus('Place your hand in the orange box, then tap Capture sign.')
           return
         } catch (err) {
           if (err instanceof DOMException && err.name === 'NotAllowedError') permissionDenied = true
@@ -323,8 +372,9 @@ export function SignAccessibilityPanel({
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const acceptLetter = (letter: string, confidence: number): boolean => {
-    if (confidence < CONFIDENCE_MIN) {
-      setStatus(`Low confidence (${Math.round(confidence * 100)}%). Hold sign steady and retry.`)
+    const minConf = mode === 'shortcut' ? CONFIDENCE_MIN_SHORTCUT : CONFIDENCE_MIN_AAC
+    if (confidence < minConf) {
+      setStatus(`Low confidence (${Math.round(confidence * 100)}%). Hold sign in the box, plain background.`)
       return false
     }
     const now = Date.now()
@@ -338,6 +388,13 @@ export function SignAccessibilityPanel({
   const handleDetectedLetter = (letter: string, confidence: number) => {
     const L = letter.toUpperCase()
     setLastResult({ letter: L, confidence })
+
+    if (mode === 'shortcut' && !SHORTCUT_LETTERS.has(L)) {
+      setStatus(
+        `Saw "${L}" (${Math.round(confidence * 100)}%) — only F G A C U H trigger shortcuts. Fill the hand box below.`,
+      )
+      return
+    }
 
     if (L === 'H' && mode === 'shortcut') {
       setStatus('F Flowchart · G Graph · A Note · C Clear · U Undo · H Help')
@@ -386,17 +443,22 @@ export function SignAccessibilityPanel({
       const frameResults: PredictResult[] = []
       for (let i = 0; i < VOTE_FRAMES; i += 1) {
         if (i > 0) await sleep(180)
-        const blob = await captureCenterCrop(video)
+        const blob = await captureFrameForModel(video)
         frameResults.push(await predictSign(blob))
       }
 
-      const voted = majorityVote(frameResults)
+      const allowed = mode === 'shortcut' ? SHORTCUT_LETTERS : undefined
+      const voted = majorityVote(frameResults, allowed)
       if (!voted) {
         if (!liveOn) {
           const guesses = frameResults
             .map((r) => `${r.letter}(${Math.round(r.confidence * 100)}%)`)
             .join(', ')
-          setStatus(`Unclear — center your hand, plain background, hold still. Frames: ${guesses}`)
+          setStatus(
+            mode === 'shortcut'
+              ? `Unclear — sign F G A C U or H inside the box, hold 2 sec. Frames: ${guesses}`
+              : `Unclear — center your hand, plain background, hold still. Frames: ${guesses}`,
+          )
           setLastResult(frameResults[0] ?? null)
         }
         return
@@ -511,6 +573,7 @@ export function SignAccessibilityPanel({
           muted
           autoPlay
         />
+        {cameraOn && <div className="sign-hand-guide" aria-hidden />}
       </section>
 
       <div className="sign-controls">

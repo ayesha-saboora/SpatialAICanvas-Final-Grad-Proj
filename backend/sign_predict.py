@@ -37,6 +37,22 @@ def _eval_transform(image_size: int, arch: str):
     )
 
 
+def _crop_variants(image: Image.Image) -> list[Image.Image]:
+    """Slight zoom variants — averages softmax to stabilise live webcam crops."""
+    w, h = image.size
+    side = min(w, h)
+    cx, cy = w // 2, h // 2
+    variants: list[Image.Image] = []
+    for scale in (0.88, 1.0, 1.12):
+        s = max(16, int(side * scale))
+        left = max(0, cx - s // 2)
+        top = max(0, cy - s // 2)
+        right = min(w, left + s)
+        bottom = min(h, top + s)
+        variants.append(image.crop((left, top, right, bottom)))
+    return variants
+
+
 def _load_model() -> tuple[torch.nn.Module, list[str], str, int]:
     global _model, _labels, _arch, _image_size
     if _model is not None and _labels is not None and _arch is not None:
@@ -74,13 +90,21 @@ def predict_sign(image_bytes: bytes) -> dict[str, float | str]:
 
     model, labels, arch, image_size = _load_model()
     image = Image.open(BytesIO(image_bytes)).convert("RGB")
-    tensor = _eval_transform(image_size, arch)(image).unsqueeze(0).to(_device)
+    transform = _eval_transform(image_size, arch)
+    variants = _crop_variants(image) if arch == ARCH_CNN3 else [image]
 
+    probs_acc: torch.Tensor | None = None
     with torch.no_grad():
-        logits = model(tensor)
-        probs = torch.softmax(logits, dim=1)[0]
-        idx = int(probs.argmax().item())
-        confidence = float(probs[idx].item())
+        for variant in variants:
+            tensor = transform(variant).unsqueeze(0).to(_device)
+            logits = model(tensor)
+            probs = torch.softmax(logits, dim=1)[0]
+            probs_acc = probs if probs_acc is None else probs_acc + probs
+
+    assert probs_acc is not None
+    probs = probs_acc / len(variants)
+    idx = int(probs.argmax().item())
+    confidence = float(probs[idx].item())
 
     letter = labels[idx] if 0 <= idx < len(labels) else "?"
     return {"letter": letter, "confidence": round(confidence, 4)}

@@ -6,6 +6,7 @@ import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
 import 'katex/dist/katex.min.css'
 import { SproutLogo, SproutHero, SproutDecor, SproutSmall } from './Sprout'
+import { Sparkle } from './Sparkle'
 import { collectSpatialContext, resolveSelectionIds, type StoredDocument } from './spatialContext'
 import { renderPdfPages } from './pdfRender'
 import { renderGraphToDataUrl, type GraphSpec } from './graphPlot'
@@ -1193,6 +1194,39 @@ export default function App() {
   if (!user && screen === 'landing') {
     return (
       <div className="landing-scroll">
+
+        {/* ===== DECORATIVE LAYER — floating STEM chips in the viewport margins (wide screens only) ===== */}
+        <div className="l-decor-layer" aria-hidden>
+          {/* Page 1 — left margin */}
+          <span className="l-stem-chip-float l-chip-purple" style={{ top: '22vh', left: '1.8%', '--chip-dur': '7s',   '--chip-delay': '0s'    } as CSSProperties}>E = mc²</span>
+          <span className="l-stem-chip-float l-chip-muted"  style={{ top: '52vh', left: '1.2%', '--chip-dur': '9.5s', '--chip-delay': '-2.5s' } as CSSProperties}>∫ f(x) dx</span>
+          <span className="l-stem-chip-float l-chip-amber"  style={{ top: '76vh', left: '2%',   '--chip-dur': '8s',   '--chip-delay': '-5s'   } as CSSProperties}>∇²φ = 0</span>
+          {/* Page 1 — right margin */}
+          <span className="l-stem-chip-float l-chip-coral"  style={{ top: '28vh', right: '1.5%', '--chip-dur': '8.5s', '--chip-delay': '-1.5s' } as CSSProperties}>F = ma</span>
+          <span className="l-stem-chip-float l-chip-amber"  style={{ top: '58vh', right: '1.8%', '--chip-dur': '7.5s', '--chip-delay': '-3s'   } as CSSProperties}>y = mx + b</span>
+          <span className="l-stem-chip-float l-chip-muted"  style={{ top: '82vh', right: '1.2%', '--chip-dur': '10s',  '--chip-delay': '-6s'   } as CSSProperties}>Σ aₙ</span>
+          {/* Page 2 */}
+          <span className="l-stem-chip-float l-chip-amber"  style={{ top: '125vh', left: '1.8%',  '--chip-dur': '9s',   '--chip-delay': '-2s'   } as CSSProperties}>PV = nRT</span>
+          <span className="l-stem-chip-float l-chip-purple" style={{ top: '165vh', left: '1.2%',  '--chip-dur': '7.5s', '--chip-delay': '-4.5s' } as CSSProperties}>λ = h / p</span>
+          <span className="l-stem-chip-float l-chip-muted"  style={{ top: '132vh', right: '1.5%', '--chip-dur': '8.5s', '--chip-delay': '-3.5s' } as CSSProperties}>det(M) ≠ 0</span>
+          <span className="l-stem-chip-float l-chip-coral"  style={{ top: '170vh', right: '1.8%', '--chip-dur': '10s',  '--chip-delay': '-1s'   } as CSSProperties}>Δx · Δp ≥ ℏ</span>
+          {/* Page 3 */}
+          <span className="l-stem-chip-float l-chip-purple" style={{ top: '226vh', left: '1.5%',  '--chip-dur': '8s',   '--chip-delay': '-4s'   } as CSSProperties}>Ax = λx</span>
+          <span className="l-stem-chip-float l-chip-muted"  style={{ top: '236vh', right: '1.8%', '--chip-dur': '7s',   '--chip-delay': '-1.5s' } as CSSProperties}>O(n log n)</span>
+          <span className="l-stem-chip-float l-chip-coral"  style={{ top: '268vh', right: '1.2%', '--chip-dur': '8.5s', '--chip-delay': '-3s'   } as CSSProperties}>6.022 × 10²³</span>
+          <span className="l-stem-chip-float l-chip-amber"  style={{ top: '274vh', left: '2%',    '--chip-dur': '9.5s', '--chip-delay': '-2s'   } as CSSProperties}>πr²</span>
+
+          {/* Sparkle accents at page corners */}
+          <div className="l-decor-sparkle" style={{ top: '10vh',  left:  '5%', color: 'rgba(168,85,247,0.45)', '--sp-dur': '6s',  '--sp-delay': '0s'    } as CSSProperties}><Sparkle size={14} /></div>
+          <div className="l-decor-sparkle" style={{ top: '10vh',  right: '5%', color: 'rgba(251,91,60,0.4)',   '--sp-dur': '7s',  '--sp-delay': '-2s'   } as CSSProperties}><Sparkle size={12} /></div>
+          <div className="l-decor-sparkle" style={{ top: '88vh',  left:  '6%', color: 'rgba(251,191,36,0.4)',  '--sp-dur': '5.5s','--sp-delay': '-1s'   } as CSSProperties}><Sparkle size={10} /></div>
+          <div className="l-decor-sparkle" style={{ top: '88vh',  right: '6%', color: 'rgba(168,85,247,0.4)',  '--sp-dur': '8s',  '--sp-delay': '-3s'   } as CSSProperties}><Sparkle size={14} /></div>
+          <div className="l-decor-sparkle" style={{ top: '108vh', left:  '5%', color: 'rgba(251,91,60,0.4)',   '--sp-dur': '6.5s','--sp-delay': '-4s'   } as CSSProperties}><Sparkle size={12} /></div>
+          <div className="l-decor-sparkle" style={{ top: '188vh', right: '5%', color: 'rgba(251,191,36,0.45)', '--sp-dur': '7.5s','--sp-delay': '-2.5s' } as CSSProperties}><Sparkle size={16} /></div>
+          <div className="l-decor-sparkle" style={{ top: '210vh', right: '6%', color: 'rgba(168,85,247,0.4)',  '--sp-dur': '5s',  '--sp-delay': '-1.5s' } as CSSProperties}><Sparkle size={11} /></div>
+          <div className="l-decor-sparkle" style={{ top: '290vh', left:  '5%', color: 'rgba(251,91,60,0.4)',   '--sp-dur': '7s',  '--sp-delay': '-0.5s' } as CSSProperties}><Sparkle size={13} /></div>
+        </div>
+
         {/* --- NAV --- */}
         <nav className="l-nav">
           <div className="l-nav-brand">
@@ -1458,7 +1492,11 @@ export default function App() {
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </button>
           <SproutLogo className="ws-topbar-logo" />
-          <span className="ws-proj-name">{selectedProject?.name ?? 'Canvas'}</span>
+          <div className="ws-proj-crumb">
+            {selectedProject?.group && <span className="ws-proj-group">{selectedProject.group}</span>}
+            {selectedProject?.group && <span className="ws-proj-sep">›</span>}
+            <span className="ws-proj-name">{selectedProject?.name ?? 'Canvas'}</span>
+          </div>
         </div>
         <div className="ws-toolbar-right">
           <button className={`ws-toolbar-ai ${chatOpen ? 'ws-toolbar-ai-active' : ''}`} onClick={() => setChatOpen(!chatOpen)} title="AI Copilot">
@@ -1534,7 +1572,15 @@ export default function App() {
             </div>
           </div>
           <div className="ai-popup-messages" ref={chatScrollRef}>
-            {chatHistory.length === 0 && <p className="ai-popup-empty">Ask anything. The AI explains first — then you can choose a flowchart, labeled diagram, or math graph.</p>}
+            {chatHistory.length === 0 && (
+              <div className="ai-popup-empty">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" style={{ margin: '0 auto 10px', display: 'block', opacity: 0.5 }}>
+                  <path d="M12 2C6.48 2 2 6.48 2 12c0 1.82.5 3.53 1.36 5L2 22l5-1.36A9.96 9.96 0 0012 22c5.52 0 10-4.48 10-10S17.52 2 12 2z" stroke="currentColor" strokeWidth="1.5"/>
+                  <path d="M8 10.5h.01M12 10.5h.01M16 10.5h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+                Ask anything — the AI explains first, then you can add a flowchart, labeled diagram, or math graph directly to your canvas.
+              </div>
+            )}
             {chatHistory.map((entry, idx) => (
               <div key={`${entry.role}_${idx}`} className={`ai-msg ai-msg-${entry.role}`}>
                 {entry.role === 'assistant' ? <RichMessage text={entry.content} /> : entry.content}

@@ -29,7 +29,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import ConfusionMatrixDisplay, classification_report, confusion_matrix
 from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset
 from transformers import (
@@ -82,25 +82,14 @@ class IntentDataset(Dataset):
         return item
 
 
-def plot_confusion(cm: np.ndarray, classes: list[str], out_path: Path) -> None:
-    n = len(classes)
-    size = max(6, n * 0.32)
-    fig, ax = plt.subplots(figsize=(size, size))
-    im = ax.imshow(cm, interpolation="nearest", cmap=plt.cm.Blues)
-    ax.figure.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-    ax.set(
-        xticks=np.arange(n),
-        yticks=np.arange(n),
-        xticklabels=classes,
-        yticklabels=classes,
-        ylabel="True",
-        xlabel="Predicted",
-        title="DistilBERT Intent Confusion Matrix",
-    )
-    ax.tick_params(axis="both", labelsize=7)
-    plt.setp(ax.get_xticklabels(), rotation=90, ha="center", rotation_mode="anchor")
-    fig.tight_layout()
-    fig.savefig(out_path, dpi=150)
+def plot_confusion(cm: np.ndarray, display_labels: list[str], out_path: Path) -> None:
+    n = len(display_labels)
+    fig, ax = plt.subplots(figsize=(24, 24))
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=display_labels)
+    disp.plot(ax=ax, xticks_rotation=90, colorbar=False, cmap="Blues")
+    ax.set_title(f"Intent Classifier Confusion Matrix — {n} Classes", fontsize=16)
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -118,6 +107,11 @@ def main() -> None:
     parser.add_argument("--lr", type=float, default=2e-5)
     parser.add_argument("--max-length", type=int, default=128)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--plot-only",
+        action="store_true",
+        help="Skip training; load saved model and regenerate the confusion matrix PNG.",
+    )
     args = parser.parse_args()
 
     random.seed(args.seed)
@@ -139,104 +133,122 @@ def main() -> None:
     print(f"Loaded {len(texts)} prompts, {len(classes)} classes")
     print(f"Train: {len(x_train)}  Test: {len(x_test)}  Device: {device}")
 
-    tokenizer = AutoTokenizer.from_pretrained(args.base_model)
-    model = AutoModelForSequenceClassification.from_pretrained(
-        args.base_model,
-        num_labels=len(classes),
-        id2label=id2label,
-        label2id=label2id,
-    )
+    if args.plot_only:
+        if not MODEL_OUT.is_dir():
+            raise FileNotFoundError(f"No saved model at {MODEL_OUT}. Train first or remove --plot-only.")
+        tokenizer = AutoTokenizer.from_pretrained(str(MODEL_OUT))
+        model = AutoModelForSequenceClassification.from_pretrained(str(MODEL_OUT))
+        test_ds = IntentDataset(x_test, y_test_ids, tokenizer, args.max_length)
+        training_args = TrainingArguments(
+            output_dir=str(ROOT / "ml" / "intent_distilbert_checkpoints"),
+            per_device_eval_batch_size=args.batch_size,
+            report_to="none",
+        )
+        trainer = Trainer(model=model, args=training_args)
+        print("Loaded saved model — generating confusion matrix only...")
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(args.base_model)
+        model = AutoModelForSequenceClassification.from_pretrained(
+            args.base_model,
+            num_labels=len(classes),
+            id2label=id2label,
+            label2id=label2id,
+        )
+        train_ds = IntentDataset(x_train, y_train_ids, tokenizer, args.max_length)
+        test_ds = IntentDataset(x_test, y_test_ids, tokenizer, args.max_length)
 
-    train_ds = IntentDataset(x_train, y_train_ids, tokenizer, args.max_length)
-    test_ds = IntentDataset(x_test, y_test_ids, tokenizer, args.max_length)
+        training_args = TrainingArguments(
+            output_dir=str(ROOT / "ml" / "intent_distilbert_checkpoints"),
+            num_train_epochs=args.epochs,
+            per_device_train_batch_size=args.batch_size,
+            per_device_eval_batch_size=args.batch_size,
+            learning_rate=args.lr,
+            weight_decay=0.01,
+            eval_strategy="epoch",
+            save_strategy="epoch",
+            load_best_model_at_end=True,
+            metric_for_best_model="accuracy",
+            greater_is_better=True,
+            logging_steps=20,
+            save_total_limit=1,
+            seed=args.seed,
+            report_to="none",
+        )
 
-    training_args = TrainingArguments(
-        output_dir=str(ROOT / "ml" / "intent_distilbert_checkpoints"),
-        num_train_epochs=args.epochs,
-        per_device_train_batch_size=args.batch_size,
-        per_device_eval_batch_size=args.batch_size,
-        learning_rate=args.lr,
-        weight_decay=0.01,
-        eval_strategy="epoch",
-        save_strategy="epoch",
-        load_best_model_at_end=True,
-        metric_for_best_model="accuracy",
-        greater_is_better=True,
-        logging_steps=20,
-        save_total_limit=1,
-        seed=args.seed,
-        report_to="none",
-    )
+        trainer = Trainer(
+            model=model,
+            args=training_args,
+            train_dataset=train_ds,
+            eval_dataset=test_ds,
+            compute_metrics=compute_metrics,
+            callbacks=[EarlyStoppingCallback(early_stopping_patience=2)],
+        )
 
-    trainer = Trainer(
-        model=model,
-        args=training_args,
-        train_dataset=train_ds,
-        eval_dataset=test_ds,
-        compute_metrics=compute_metrics,
-        callbacks=[EarlyStoppingCallback(early_stopping_patience=2)],
-    )
+        print("Starting fine-tuning...")
+        trainer.train()
+        eval_result = trainer.evaluate()
+        print(f"Eval accuracy: {eval_result.get('eval_accuracy', 0):.4f}")
 
-    print("Starting fine-tuning...")
-    trainer.train()
-    eval_result = trainer.evaluate()
-    print(f"Eval accuracy: {eval_result.get('eval_accuracy', 0):.4f}")
-
-    preds_output = trainer.predict(test_ds)
-    y_pred_ids = np.argmax(preds_output.predictions, axis=-1)
-    y_true_names = [id2label[int(i)] for i in y_test_ids]
+    predictions = trainer.predict(test_ds)
+    y_pred_ids = np.argmax(predictions.predictions, axis=1)
+    y_true_ids = predictions.label_ids
+    y_true_names = [id2label[int(i)] for i in y_true_ids]
     y_pred_names = [id2label[int(i)] for i in y_pred_ids]
 
     report = classification_report(y_true_names, y_pred_names, output_dict=True)
-    labels_order = sorted(set(y_true_names) | set(y_pred_names))
-    cm = confusion_matrix(y_true_names, y_pred_names, labels=labels_order)
+    cm = confusion_matrix(y_true_ids, y_pred_ids)
 
-    MODEL_OUT.mkdir(parents=True, exist_ok=True)
-    trainer.save_model(str(MODEL_OUT))
-    tokenizer.save_pretrained(str(MODEL_OUT))
-    LABELS_OUT.write_text(json.dumps(classes, indent=2), encoding="utf-8")
-    (MODEL_OUT / "label2id.json").write_text(json.dumps(label2id, indent=2), encoding="utf-8")
+    if not args.plot_only:
+        MODEL_OUT.mkdir(parents=True, exist_ok=True)
+        trainer.save_model(str(MODEL_OUT))
+        tokenizer.save_pretrained(str(MODEL_OUT))
+        LABELS_OUT.write_text(json.dumps(classes, indent=2), encoding="utf-8")
+        (MODEL_OUT / "label2id.json").write_text(json.dumps(label2id, indent=2), encoding="utf-8")
 
-    metrics = {
-        "model": "distilbert-base-uncased",
-        "classes": classes,
-        "train_size": len(x_train),
-        "test_size": len(x_test),
-        "test_accuracy": float(report["accuracy"]),
-        "eval_accuracy": float(eval_result.get("eval_accuracy", report["accuracy"])),
-        "device": device,
-        "epochs": args.epochs,
-        "classification_report": report,
-    }
-    METRICS_OUT.write_text(json.dumps(metrics, indent=2), encoding="utf-8")
-    plot_confusion(cm, labels_order, CM_OUT)
+        metrics = {
+            "model": "distilbert-base-uncased",
+            "classes": classes,
+            "train_size": len(x_train),
+            "test_size": len(x_test),
+            "test_accuracy": float(report["accuracy"]),
+            "eval_accuracy": float(eval_result.get("eval_accuracy", report["accuracy"])),
+            "device": device,
+            "epochs": args.epochs,
+            "classification_report": report,
+        }
+        METRICS_OUT.write_text(json.dumps(metrics, indent=2), encoding="utf-8")
 
-    demo = [
-        "draw a flowchart of photosynthesis",
-        "what is photosynthesis",
-        "plot y = x^2",
-        "draw a labeled diagram of the human heart",
-        "debug my python sorting function",
-        "prove that sqrt(2) is irrational",
-        "what's the time complexity of merge sort",
-        "create flashcards for operating systems",
-        "compare CNNs and Transformers",
-        "integrate x e^x",
-    ]
-    print("\nSanity check:")
-    model.eval()
-    for text in demo:
-        inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=args.max_length)
-        inputs = {k: v.to(model.device) for k, v in inputs.items()}
-        with torch.no_grad():
-            logits = model(**inputs).logits[0]
-            probs = torch.softmax(logits, dim=-1)
-            idx = int(probs.argmax().item())
-        print(f"  {text!r:55s} -> {id2label[idx]} ({float(probs[idx]):.2f})")
+    plot_confusion(cm, list(label2id.keys()), CM_OUT)
+    print(f"Test accuracy: {report['accuracy']:.4f}")
 
-    print(f"\nSaved model  -> {MODEL_OUT}")
-    print(f"Saved labels -> {LABELS_OUT}")
-    print(f"Metrics      -> {METRICS_OUT}")
+    if not args.plot_only:
+        demo = [
+            "draw a flowchart of photosynthesis",
+            "what is photosynthesis",
+            "plot y = x^2",
+            "draw a labeled diagram of the human heart",
+            "debug my python sorting function",
+            "prove that sqrt(2) is irrational",
+            "what's the time complexity of merge sort",
+            "create flashcards for operating systems",
+            "compare CNNs and Transformers",
+            "integrate x e^x",
+        ]
+        print("\nSanity check:")
+        model.eval()
+        for text in demo:
+            inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=args.max_length)
+            inputs = {k: v.to(model.device) for k, v in inputs.items()}
+            with torch.no_grad():
+                logits = model(**inputs).logits[0]
+                probs = torch.softmax(logits, dim=-1)
+                idx = int(probs.argmax().item())
+            print(f"  {text!r:55s} -> {id2label[idx]} ({float(probs[idx]):.2f})")
+
+        print(f"\nSaved model  -> {MODEL_OUT}")
+        print(f"Saved labels -> {LABELS_OUT}")
+        print(f"Metrics      -> {METRICS_OUT}")
+
     print(f"Confusion matrix -> {CM_OUT}")
 
 

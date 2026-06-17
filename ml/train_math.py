@@ -67,9 +67,9 @@ def operator_dir(symbol: str) -> Path:
     return SYNTH_DIR / SYMBOL_FOLDER[symbol]
 
 
-def ensure_synthetic_cache(samples_per_operator: int) -> None:
+def ensure_synthetic_cache(samples_per_operator: int, synthetic_symbols: list[str]) -> None:
     SYNTH_DIR.mkdir(parents=True, exist_ok=True)
-    for sym in SYNTHETIC_SYMBOLS:
+    for sym in synthetic_symbols:
         sym_dir = operator_dir(sym)
         sym_dir.mkdir(parents=True, exist_ok=True)
         existing = list(sym_dir.glob("*.png"))
@@ -312,8 +312,14 @@ class CanvasAugmentedDataset(Dataset):
         return [self.base[i][1] for i in range(len(self.base))]
 
 
-def build_datasets(samples_per_operator: int = 800, max_per_class: int = 3000):
-    ensure_synthetic_cache(samples_per_operator)
+def build_datasets(
+    symbols: list[str],
+    external_dir: Path,
+    samples_per_operator: int = 800,
+    max_per_class: int = 3000,
+):
+    synthetic_symbols = [sym for sym in symbols if sym in SYNTHETIC_SYMBOLS]
+    ensure_synthetic_cache(samples_per_operator, synthetic_symbols)
     train_tf = transforms.Compose(
         [
             transforms.Resize((64, 64)),
@@ -332,13 +338,13 @@ def build_datasets(samples_per_operator: int = 800, max_per_class: int = 3000):
 
     train_parts = []
     test_parts = []
-    for label, sym in enumerate(SYMBOLS):
-        if sym in SYNTHETIC_SYMBOLS:
+    for label, sym in enumerate(symbols):
+        if sym in synthetic_symbols:
             folder = operator_dir(sym)
             train_base = FolderDataset(folder, label, train=True, thicken=True)
             test_base = FolderDataset(folder, label, train=False, thicken=True)
         else:
-            folder = EXTERNAL_DIR / EXTERNAL_FOLDER[sym]
+            folder = external_dir / EXTERNAL_FOLDER[sym]
             train_base = FolderDataset(folder, label, train=True, split=0.9, max_total=max_per_class)
             test_base = FolderDataset(folder, label, train=False, split=0.9, max_total=max_per_class)
 
@@ -431,14 +437,18 @@ def main() -> None:
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--samples-per-operator", type=int, default=800)
     parser.add_argument("--max-per-class", type=int, default=3000)
+    parser.add_argument("--digits-only", action="store_true")
+    parser.add_argument("--data-dir", type=Path, default=EXTERNAL_DIR)
     args = parser.parse_args()
 
     random.seed(42)
     np.random.seed(42)
     torch.manual_seed(42)
 
-    train_ds, test_ds = build_datasets(args.samples_per_operator, args.max_per_class)
-    print(f"Classes ({len(SYMBOLS)}): {SYMBOLS}")
+    symbols = DIGIT_SYMBOLS if args.digits_only else SYMBOLS
+    train_ds, test_ds = build_datasets(symbols, args.data_dir, args.samples_per_operator, args.max_per_class)
+    print(f"Classes ({len(symbols)}): {symbols}")
+    print(f"Data dir: {args.data_dir}")
     print(f"Train size: {len(train_ds)}  Test size: {len(test_ds)}")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -447,7 +457,7 @@ def main() -> None:
     train_loader = make_balanced_loader(train_ds, args.batch_size, shuffle=True)
     test_loader = make_balanced_loader(test_ds, args.batch_size, shuffle=False)
 
-    model = MathSymbolCNN(len(SYMBOLS)).to(device)
+    model = MathSymbolCNN(len(symbols)).to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
@@ -463,10 +473,10 @@ def main() -> None:
             best_acc = te_acc
             best_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
             MODEL_OUT.parent.mkdir(parents=True, exist_ok=True)
-            torch.save({"state_dict": best_state, "num_classes": len(SYMBOLS)}, MODEL_OUT)
-            LABELS_OUT.write_text(json.dumps(SYMBOLS, indent=2), encoding="utf-8")
+            torch.save({"state_dict": best_state, "num_classes": len(symbols)}, MODEL_OUT)
+            LABELS_OUT.write_text(json.dumps(symbols, indent=2), encoding="utf-8")
             METRICS_OUT.write_text(
-                json.dumps({"symbols": SYMBOLS, "best_test_accuracy": best_acc, "history": history}, indent=2),
+                json.dumps({"symbols": symbols, "best_test_accuracy": best_acc, "history": history}, indent=2),
                 encoding="utf-8",
             )
 
@@ -474,21 +484,21 @@ def main() -> None:
         model.load_state_dict(best_state)
 
     y_true, y_pred = evaluate(model, test_loader, device)
-    report = classification_report(y_true, y_pred, target_names=SYMBOLS, output_dict=True, zero_division=0)
+    report = classification_report(y_true, y_pred, target_names=symbols, output_dict=True, zero_division=0)
     cm = confusion_matrix(y_true, y_pred)
 
     MODEL_OUT.parent.mkdir(parents=True, exist_ok=True)
-    torch.save({"state_dict": model.state_dict(), "num_classes": len(SYMBOLS)}, MODEL_OUT)
-    LABELS_OUT.write_text(json.dumps(SYMBOLS, indent=2), encoding="utf-8")
+    torch.save({"state_dict": model.state_dict(), "num_classes": len(symbols)}, MODEL_OUT)
+    LABELS_OUT.write_text(json.dumps(symbols, indent=2), encoding="utf-8")
 
     metrics = {
-        "symbols": SYMBOLS,
+        "symbols": symbols,
         "best_test_accuracy": best_acc,
         "classification_report": report,
         "history": history,
     }
     METRICS_OUT.write_text(json.dumps(metrics, indent=2), encoding="utf-8")
-    plot_confusion(cm, SYMBOLS, CM_OUT)
+    plot_confusion(cm, symbols, CM_OUT)
 
     print(f"Best test accuracy: {best_acc:.4f}")
     print(f"Saved model -> {MODEL_OUT}")

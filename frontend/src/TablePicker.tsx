@@ -62,7 +62,7 @@ export function TablePicker({ editor, isDark }: Props) {
           <rect x="2" y="2" width="12" height="12" rx="1" stroke="currentColor" strokeWidth="1.3" />
           <path d="M2 6h12M2 10h12M6 2v12M10 2v12" stroke="currentColor" strokeWidth="1" />
         </svg>
-        Table
+        <span className="ws-rail-label">Table</span>
       </button>
 
       {open && (

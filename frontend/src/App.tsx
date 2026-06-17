@@ -350,6 +350,8 @@ export default function App() {
   const [activeGroup, setActiveGroup] = useState<string | null>(null)
   const [isDraggingFile, setIsDraggingFile] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
+  const [aiFloat, setAiFloat] = useState(false)
+  const [aiPos, setAiPos] = useState({ x: 60, y: 60 })
   const [intentInfo, setIntentInfo] = useState<{ intent: string; confidence: number; backend?: string } | null>(null)
   const [signOpen, setSignOpen] = useState(false)
   const [mathRecognizing, setMathRecognizing] = useState(false)
@@ -372,6 +374,7 @@ export default function App() {
   const aslSectionRef = useRef<HTMLDivElement | null>(null)
   const chatScrollRef = useRef<HTMLDivElement | null>(null)
   const pendingDiagramRef = useRef<{ diagram?: DiagramData; steps?: string[] } | null>(null)
+  const aiDragRef = useRef<{ startX: number; startY: number; startPosX: number; startPosY: number } | null>(null)
   /** Keeps last canvas selection when user clicks away into chat. */
   const pinnedSelectionRef = useRef<string[]>([])
   /** Full extracted text per project (not truncated like canvas preview). */
@@ -1078,76 +1081,90 @@ export default function App() {
       const isDocx = lower.endsWith('.docx') || file.type.includes('wordprocessingml')
       const isImage = file.type.startsWith('image/')
 
-      if (isPdf || isDocx) {
-        const formData = new FormData()
-        formData.append('file', file)
+      if (isPdf) {
+        // Render pages first — visual is fully independent of backend extraction
         try {
-          const res = await apiFetch('/ai/extract', { method: 'POST', body: formData })
-          if (!res.ok) {
-            const errText = await res.text().catch(() => 'Upload failed')
-            setAiError(`Document upload failed: ${errText.slice(0, 200)}`)
-            continue
+          const pages = await renderPdfPages(file, 20)
+          if (pages.length === 0) { setAiError('PDF has no renderable pages'); continue }
+          const origin = getNextDiagramOrigin(editor)
+          let y = origin.y
+          const maxW = 760
+          for (const page of pages) {
+            const scale = page.w > maxW ? maxW / page.w : 1
+            const assetId = AssetRecordType.createId()
+            const shapeId = createShapeId()
+            editor.createAssets([{
+              id: assetId, type: 'image', typeName: 'asset',
+              props: {
+                name: `${file.name} — p${page.pageNum}`,
+                src: page.dataUrl, w: page.w, h: page.h,
+                mimeType: 'image/jpeg', isAnimated: false,
+              },
+              meta: {},
+            }])
+            editor.createShapes([{
+              id: shapeId, type: 'image', x: origin.x, y,
+              meta: { scPdfPage: true, scFilename: file.name, scPage: page.pageNum },
+              props: { assetId, w: page.w * scale, h: page.h * scale },
+            }])
+            y += page.h * scale + 20
           }
-          const { text, filename } = await res.json() as { text: string; filename: string }
-          if (text?.trim()) {
-            const existing = projectDocumentsRef.current.get(projectKey) ?? []
-            projectDocumentsRef.current.set(projectKey, [
-              ...existing,
-              { filename: filename || file.name, text },
-            ])
-          }
+          editor.zoomToFit()
+          setAiError('')
         } catch (err) {
-          setAiError(err instanceof Error ? err.message : 'Document extraction failed')
+          setAiError(err instanceof Error ? err.message : 'PDF rendering failed')
           continue
         }
+        // Fire-and-forget background text extraction for AI context
+        const fd = new FormData()
+        fd.append('file', file)
+        apiFetch('/ai/extract', { method: 'POST', body: fd })
+          .then(async (res) => {
+            if (!res.ok) return
+            const data = await res.json() as { text: string; filename: string }
+            if (data.text?.trim()) {
+              const existing = projectDocumentsRef.current.get(projectKey) ?? []
+              projectDocumentsRef.current.set(projectKey, [
+                ...existing,
+                { filename: data.filename || file.name, text: data.text },
+              ])
+            }
+          })
+          .catch(() => {/* visual already placed — silence extraction errors */})
+        continue
+      }
 
-        if (isPdf) {
-          try {
-            const pages = await renderPdfPages(file, 10)
-            if (pages.length === 0) {
-              setAiError('PDF has no renderable pages')
-              continue
-            }
+      if (isDocx) {
+        const fd = new FormData()
+        fd.append('file', file)
+        try {
+          const res = await apiFetch('/ai/extract', { method: 'POST', body: fd })
+          if (!res.ok) { setAiError('Could not read document — make sure the server is running'); continue }
+          const { text, filename } = await res.json() as { text: string; filename: string }
+          const name = filename || file.name
+          if (text?.trim()) {
+            const existing = projectDocumentsRef.current.get(projectKey) ?? []
+            projectDocumentsRef.current.set(projectKey, [...existing, { filename: name, text }])
+            // Place an editable text card on the canvas
             const origin = getNextDiagramOrigin(editor)
-            let y = origin.y
-            const maxW = 720
-            for (const page of pages) {
-              const scale = page.w > maxW ? maxW / page.w : 1
-              const assetId = AssetRecordType.createId()
-              const shapeId = createShapeId()
-              editor.createAssets([{
-                id: assetId, type: 'image', typeName: 'asset',
-                props: {
-                  name: `${file.name} — page ${page.pageNum}`,
-                  src: page.dataUrl,
-                  w: page.w,
-                  h: page.h,
-                  mimeType: 'image/jpeg',
-                  isAnimated: false,
-                },
-                meta: {},
-              }])
-              editor.createShapes([{
-                id: shapeId,
-                type: 'image',
-                x: origin.x,
-                y,
-                meta: { scPdfPage: true, scFilename: file.name, scPage: page.pageNum },
-                props: {
-                  assetId,
-                  w: page.w * scale,
-                  h: page.h * scale,
-                },
-              }])
-              y += page.h * scale + 48
-            }
-            setAiError('')
-            continue
-          } catch (err) {
-            setAiError(err instanceof Error ? err.message : 'PDF rendering failed')
-            continue
+            const shapeId = createShapeId()
+            const wordCount = text.split(/\s+/).filter(Boolean).length
+            const preview = text.length > 1200 ? text.slice(0, 1200) + '\n\n…' : text
+            editor.createShapes([{
+              id: shapeId, type: 'note',
+              x: origin.x, y: origin.y,
+              props: {
+                richText: toRichText(`📄 ${name}  ·  ${wordCount} words\n${'─'.repeat(28)}\n${preview}`),
+                color: 'light-blue', size: 's', font: 'mono',
+              },
+            }])
+            editor.zoomToFit()
           }
+          setAiError('')
+        } catch (err) {
+          setAiError(err instanceof Error ? err.message : 'Document extraction failed')
         }
+        continue
       }
 
       if (isImage) {
@@ -1189,6 +1206,22 @@ export default function App() {
   }, [handleFileUpload])
   const onCanvasDragOver = useCallback((e: DragEvent<HTMLDivElement>) => { e.preventDefault(); setIsDraggingFile(true) }, [])
   const onCanvasDragLeave = useCallback(() => setIsDraggingFile(false), [])
+
+  const startAiDrag = useCallback((e: React.MouseEvent) => {
+    if (!aiFloat) return
+    e.preventDefault()
+    aiDragRef.current = { startX: e.clientX, startY: e.clientY, startPosX: aiPos.x, startPosY: aiPos.y }
+    const onMove = (ev: MouseEvent) => {
+      if (!aiDragRef.current) return
+      setAiPos({
+        x: Math.max(0, aiDragRef.current.startPosX + ev.clientX - aiDragRef.current.startX),
+        y: Math.max(0, aiDragRef.current.startPosY + ev.clientY - aiDragRef.current.startY),
+      })
+    }
+    const onUp = () => { aiDragRef.current = null; document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp) }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+  }, [aiFloat, aiPos])
 
   /* ====== LANDING (scrollable: hero → features → auth) ====== */
   if (!user && screen === 'landing') {
@@ -1484,7 +1517,7 @@ export default function App() {
   const isDark = isDarkUi
 
   return (
-    <div className={`ws-shell ws-layout ${isDark ? 'ws-dark' : 'ws-light'} ${chatOpen ? 'ws-chat-open' : ''}`}>
+    <div className={`ws-shell ws-layout ${isDark ? 'ws-dark' : 'ws-light'} ${chatOpen && !aiFloat ? 'ws-chat-open' : ''}`}>
       {/* Full-width top toolbar */}
       <header className="ws-toolbar">
         <div className="ws-toolbar-left">
@@ -1511,36 +1544,64 @@ export default function App() {
 
       {/* Left vertical tool rail */}
       <aside className="ws-rail">
-        <button className="ws-rail-btn" onClick={() => setWsTheme(isDark ? 'light' : 'dark')} title={isDark ? 'Light mode' : 'Dark mode'}>
+        <button className="ws-rail-btn" onClick={() => setWsTheme(isDark ? 'light' : 'dark')} title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}>
           {isDark ? (
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 3a6 6 0 009 5.2A9 9 0 1112 3z" stroke="currentColor" strokeWidth="1.5" fill="rgba(255,200,50,0.15)"/></svg>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.5"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
           ) : (
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.5"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 3a6 6 0 009 5.2A9 9 0 1112 3z" stroke="currentColor" strokeWidth="1.5" fill="rgba(255,200,50,0.15)"/></svg>
           )}
+          <span className="ws-rail-label">{isDark ? 'Light' : 'Dark'}</span>
         </button>
-        <div className="ws-rail-table"><TablePicker editor={canvasEditor} isDark={isDark} /></div>
-        <button className={`ws-rail-btn ${stylesOpen ? 'ws-rail-active' : ''}`} onClick={() => setStylesOpen(!stylesOpen)} title="Styles">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="4" cy="4" r="2" fill="currentColor"/><circle cx="12" cy="4" r="2" fill="currentColor"/><circle cx="4" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>
-        </button>
-        <button className="ws-rail-btn" onClick={() => fileInputRef.current?.click()} title="Upload">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v8m0 0l-3-3m3 3l3-3M3 13h10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+
+        <div className="ws-rail-divider" />
+
+        <button className="ws-rail-btn" onClick={() => fileInputRef.current?.click()} title="Upload PDF, image, or Word doc">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 13V5m0 0L5 8m3-3l3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 13h12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
+          <span className="ws-rail-label">Upload</span>
         </button>
         <input ref={fileInputRef} type="file" accept="image/*,.pdf,.docx,application/pdf" multiple hidden
           onChange={(e) => { if (e.target.files) void handleFileUpload(e.target.files) }} />
-        <button className={`ws-rail-btn ${isListening ? 'ws-rail-active' : ''}`} onClick={toggleVoiceMode} disabled={!voiceSupported} title="Voice">
+
+        <button className={`ws-rail-btn ${isListening ? 'ws-rail-active' : ''}`} onClick={toggleVoiceMode} disabled={!voiceSupported} title="Voice input">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1a2 2 0 012 2v4a2 2 0 01-4 0V3a2 2 0 012-2z" stroke="currentColor" strokeWidth="1.3"/><path d="M4 7a4 4 0 008 0M8 13v2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+          <span className="ws-rail-label">Voice</span>
         </button>
-        <button className={`ws-rail-btn ${signOpen ? 'ws-rail-active' : ''}`} onClick={() => setSignOpen(!signOpen)} title="Sign Access">
+
+        <button className={`ws-rail-btn ${signOpen ? 'ws-rail-active' : ''}`} onClick={() => setSignOpen(!signOpen)} title="Sign language accessibility">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 3c0-1 2-2 4-2s4 1 4 2v2H4V3z" stroke="currentColor" strokeWidth="1.2"/><path d="M3 5h10v2c0 3-2 6-5 6S3 10 3 7V5z" stroke="currentColor" strokeWidth="1.2"/></svg>
+          <span className="ws-rail-label">Sign</span>
         </button>
+
         <button
           className={`ws-rail-btn ${mathRecognizing ? 'ws-rail-active' : ''}`}
           onClick={() => void handleRecognizeMath()}
           disabled={mathRecognizing}
-          title="Recognize handwritten math — draw one symbol per stroke, then click"
+          title="Recognize handwritten math"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 13l3-8 2 4 2-3 3 7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/><path d="M3 13h10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
+          <span className="ws-rail-label">Math</span>
         </button>
+
+        <div className="ws-rail-divider" />
+
+        <button className="ws-rail-btn" onClick={() => canvasEditor?.undo()} title="Undo (Ctrl+Z)">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 6h7a3.5 3.5 0 110 7H7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M3 6l2.5-2.5M3 6l2.5 2.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          <span className="ws-rail-label">Undo</span>
+        </button>
+
+        <button className="ws-rail-btn" onClick={() => canvasEditor?.redo()} title="Redo (Ctrl+Y)">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M13 6H6a3.5 3.5 0 100 7h3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M13 6l-2.5-2.5M13 6l-2.5 2.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          <span className="ws-rail-label">Redo</span>
+        </button>
+
+        <div className="ws-rail-divider" />
+
+        <div className="ws-rail-table"><TablePicker editor={canvasEditor} isDark={isDark} /></div>
+        <button className={`ws-rail-btn ${stylesOpen ? 'ws-rail-active' : ''}`} onClick={() => setStylesOpen(!stylesOpen)} title="Shape styles panel">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="4" cy="4" r="2" fill="currentColor"/><circle cx="12" cy="4" r="2" fill="currentColor"/><circle cx="4" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>
+          <span className="ws-rail-label">Styles</span>
+        </button>
+
         <div className="ws-rail-spacer" />
         <PlantTimer isDark={isDark} projectId={selectedProjectId} />
       </aside>
@@ -1558,16 +1619,36 @@ export default function App() {
           overrides={STUDY_CANVAS_OVERRIDES}
         />
 
-        <aside className={`ai-panel ${chatOpen ? 'ai-panel-open' : ''}`}>
-          <div className="ai-popup-header">
-            <span>AI Copilot</span>
+        <aside
+          className={`ai-panel ${chatOpen ? 'ai-panel-open' : ''} ${aiFloat ? 'ai-panel-float' : ''}`}
+          style={aiFloat ? { left: aiPos.x, top: aiPos.y } as CSSProperties : undefined}
+        >
+          <div
+            className="ai-popup-header"
+            onMouseDown={startAiDrag}
+            style={aiFloat ? { cursor: 'grab' } : undefined}
+          >
+            <span className="ai-popup-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ opacity: 0.7 }}><path d="M12 2C6.48 2 2 6.48 2 12c0 1.82.5 3.53 1.36 5L2 22l5-1.36A9.96 9.96 0 0012 22c5.52 0 10-4.48 10-10S17.52 2 12 2z" stroke="currentColor" strokeWidth="1.6"/></svg>
+              AI Copilot
+            </span>
             <div className="ai-popup-actions">
               <label className="ai-popup-auto">
                 <input type="checkbox" checked={autoSendVoice} onChange={(e) => setAutoSendVoice(e.target.checked)} />
-                Auto-send voice
+                Auto-send
               </label>
-              <button className="ai-popup-close" onClick={() => setChatOpen(false)}>
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+              <button
+                className="ai-popup-action-btn"
+                onClick={() => { setAiFloat(!aiFloat); if (!aiFloat) setAiPos({ x: 60, y: 60 }) }}
+                title={aiFloat ? 'Dock to side' : 'Float as window'}
+              >
+                {aiFloat
+                  ? <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M2 4v9h12V4M6 1h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  : <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="2" y="4" width="12" height="10" rx="2" stroke="currentColor" strokeWidth="1.4"/><path d="M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
+                }
+              </button>
+              <button className="ai-popup-action-btn" onClick={() => setChatOpen(false)}>
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
               </button>
             </div>
           </div>

@@ -329,6 +329,72 @@ class CanvasAugmentedDataset(Dataset):
         return [self.base[i][1] for i in range(len(self.base))]
 
 
+class SyntheticCanvasDataset(Dataset):
+    """On-the-fly canvas-like strokes — matches tldraw pen exports when external data is absent."""
+
+    def __init__(
+        self,
+        symbols: list[str],
+        label_map: dict[str, int],
+        samples_per_class: int,
+        train: bool,
+        split: float = 0.9,
+    ):
+        self.symbols = symbols
+        self.label_map = label_map
+        self.train = train
+        n_train = int(samples_per_class * split)
+        n_test = samples_per_class - n_train
+        self.sample_ids: list[tuple[str, int]] = []
+        for sym in symbols:
+            start = 0 if train else n_train
+            end = n_train if train else samples_per_class
+            for i in range(start, end):
+                self.sample_ids.append((sym, i))
+
+    def __len__(self) -> int:
+        return len(self.sample_ids)
+
+    def __getitem__(self, idx: int):
+        sym, sample_i = self.sample_ids[idx]
+        rng_state = random.getstate()
+        np_state = np.random.get_state()
+        seed = (hash(sym) * 1009 + sample_i * 17 + (1 if self.train else 2)) & 0xFFFFFFFF
+        random.seed(seed)
+        np.random.seed(seed)
+        img = generate_synthetic_symbol(sym)
+        if self.train:
+            img = simulate_canvas_export(img)
+        random.setstate(rng_state)
+        np.random.set_state(np_state)
+        return img, self.label_map[sym]
+
+    def labels(self) -> list[int]:
+        return [self.label_map[sym] for sym, _ in self.sample_ids]
+
+
+def build_synthetic_canvas_datasets(symbols: list[str], samples_per_class: int = 800):
+    train_tf = transforms.Compose(
+        [
+            transforms.Resize((64, 64)),
+            transforms.RandomAffine(degrees=20, translate=(0.14, 0.14), scale=(0.85, 1.15), shear=10),
+            transforms.ToTensor(),
+            transforms.Normalize([0.5], [0.5]),
+        ]
+    )
+    eval_tf = transforms.Compose(
+        [
+            transforms.Resize((64, 64)),
+            transforms.ToTensor(),
+            transforms.Normalize([0.5], [0.5]),
+        ]
+    )
+    label_map = {sym: i for i, sym in enumerate(symbols)}
+    train_base = SyntheticCanvasDataset(symbols, label_map, samples_per_class, train=True)
+    test_base = SyntheticCanvasDataset(symbols, label_map, samples_per_class, train=False)
+    return TransformDataset(train_base, train_tf), TransformDataset(test_base, eval_tf)
+
+
 def build_datasets(
     symbols: list[str],
     external_dirs: list[Path],
@@ -472,6 +538,11 @@ def main() -> None:
         action="store_true",
         help="Train from --data-dir only (do not merge extra digit dataset).",
     )
+    parser.add_argument(
+        "--canvas-synthetic",
+        action="store_true",
+        help="Train on canvas-like synthetic strokes only (no external dataset files).",
+    )
     args = parser.parse_args()
 
     random.seed(42)
@@ -479,15 +550,20 @@ def main() -> None:
     torch.manual_seed(42)
 
     symbols = DIGIT_SYMBOLS if args.digits_only else SYMBOLS
-    external_dirs = [args.data_dir]
-    if not args.no_extra_data and args.extra_data_dir.is_dir():
-        if args.extra_data_dir.resolve() != args.data_dir.resolve():
-            external_dirs.append(args.extra_data_dir)
-    train_ds, test_ds = build_datasets(
-        symbols, external_dirs, args.samples_per_operator, args.max_per_class
-    )
-    print(f"Classes ({len(symbols)}): {symbols}")
-    print(f"Data dirs: {[str(d) for d in external_dirs]}")
+    if args.canvas_synthetic:
+        train_ds, test_ds = build_synthetic_canvas_datasets(symbols, args.samples_per_operator)
+        print(f"Classes ({len(symbols)}): {symbols}")
+        print("Data: canvas-synthetic (on-the-fly)")
+    else:
+        external_dirs = [args.data_dir]
+        if not args.no_extra_data and args.extra_data_dir.is_dir():
+            if args.extra_data_dir.resolve() != args.data_dir.resolve():
+                external_dirs.append(args.extra_data_dir)
+        train_ds, test_ds = build_datasets(
+            symbols, external_dirs, args.samples_per_operator, args.max_per_class
+        )
+        print(f"Classes ({len(symbols)}): {symbols}")
+        print(f"Data dirs: {[str(d) for d in external_dirs]}")
     print(f"Train size: {len(train_ds)}  Test size: {len(test_ds)}")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

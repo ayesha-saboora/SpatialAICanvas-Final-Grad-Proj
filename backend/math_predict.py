@@ -102,8 +102,8 @@ def _to_ink_grayscale(image: Image.Image) -> Image.Image:
     return Image.fromarray(gray.astype(np.uint8), mode="L")
 
 
-def _preprocess_image(image: Image.Image, *, pad: int = 6, thicken: int = 2) -> Image.Image:
-    """Crop to ink, square-pad, thicken — size-invariant."""
+def _preprocess_image(image: Image.Image, *, pad: int = 6, thicken: int = 1) -> Image.Image:
+    """Crop to ink, square-pad, optional light thicken — matches training eval."""
     gray = _to_ink_grayscale(image)
     ink = np.array(gray) < 245
     if ink.any():
@@ -122,21 +122,31 @@ def _preprocess_image(image: Image.Image, *, pad: int = 6, thicken: int = 2) -> 
 
 
 def _preprocess_variants(image: Image.Image) -> list[Image.Image]:
-    """Two crops for fast inference with reasonable accuracy."""
+    """Pad/thicken TTA — light touch to match handwritten eval, not heavy canvas sim."""
     return [
-        _preprocess_image(image, pad=6, thicken=2),
-        _preprocess_image(image, pad=8, thicken=2),
+        _preprocess_image(image, pad=4, thicken=0),
+        _preprocess_image(image, pad=6, thicken=1),
+        _preprocess_image(image, pad=8, thicken=1),
+        _preprocess_image(image, pad=10, thicken=0),
     ]
+
+
+def _decode_probs(probs: torch.Tensor, labels: list[str]) -> dict:
+    idx = int(probs.argmax().item())
+    confidence = float(probs[idx].item())
+    topk = torch.topk(probs, k=min(5, len(labels)))
+    alternatives = [
+        {"symbol": labels[int(i)], "confidence": round(float(p), 4)}
+        for p, i in zip(topk.values.tolist(), topk.indices.tolist())
+    ]
+    symbol = labels[idx] if 0 <= idx < len(labels) else "?"
+    return {"symbol": symbol, "confidence": round(confidence, 4), "alternatives": alternatives}
 
 
 def predict_math_symbols_batch(crops: list[Image.Image]) -> list[dict]:
     """Classify multiple symbol crops in one batched forward pass."""
     if not crops:
         return []
-    if len(crops) == 1:
-        buf = BytesIO()
-        crops[0].save(buf, format="PNG")
-        return [predict_math_symbol(buf.getvalue())]
 
     model, labels = _load_model()
     tensors = []
@@ -155,21 +165,7 @@ def predict_math_symbols_batch(crops: list[Image.Image]) -> list[dict]:
     results: list[dict] = []
     for i in range(n_crops):
         crop_probs = probs[i * n_variants : (i + 1) * n_variants].mean(dim=0)
-        idx = int(crop_probs.argmax().item())
-        confidence = float(crop_probs[idx].item())
-        top3 = torch.topk(crop_probs, k=min(3, len(labels)))
-        alternatives = [
-            {"symbol": labels[int(j)], "confidence": round(float(p), 4)}
-            for p, j in zip(top3.values.tolist(), top3.indices.tolist())
-        ]
-        symbol = labels[idx] if 0 <= idx < len(labels) else "?"
-        if confidence < 0.42 and len(top3.indices) > 1:
-            alt_idx = int(top3.indices[1].item())
-            alt_conf = float(crop_probs[alt_idx].item())
-            if alt_conf > confidence * 0.88:
-                symbol = labels[alt_idx]
-                confidence = alt_conf
-        results.append({"symbol": symbol, "confidence": round(confidence, 4), "alternatives": alternatives})
+        results.append(_decode_probs(crop_probs, labels))
     return results
 
 
@@ -191,22 +187,4 @@ def predict_math_symbol(image_bytes: bytes) -> dict[str, float | str | list[dict
             probs_acc = probs if probs_acc is None else probs_acc + probs
 
     assert probs_acc is not None
-    probs = probs_acc / len(variants)
-    idx = int(probs.argmax().item())
-    confidence = float(probs[idx].item())
-    top3 = torch.topk(probs, k=min(3, len(labels)))
-    alternatives = [
-        {"symbol": labels[int(i)], "confidence": round(float(p), 4)}
-        for p, i in zip(top3.values.tolist(), top3.indices.tolist())
-    ]
-
-    symbol = labels[idx] if 0 <= idx < len(labels) else "?"
-    # Model over-predicts ambiguous crops — prefer second choice if top is very uncertain.
-    if confidence < 0.45 and len(top3.indices) > 1:
-        alt_idx = int(top3.indices[1].item())
-        alt_conf = float(probs[alt_idx].item())
-        if alt_conf > confidence * 0.85:
-            symbol = labels[alt_idx]
-            confidence = alt_conf
-
-    return {"symbol": symbol, "confidence": round(confidence, 4), "alternatives": alternatives}
+    return _decode_probs(probs_acc / len(variants), labels)

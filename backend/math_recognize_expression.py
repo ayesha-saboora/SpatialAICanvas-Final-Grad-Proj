@@ -6,10 +6,10 @@ import re
 from io import BytesIO
 
 import numpy as np
-from PIL import Image, ImageFilter, ImageOps
+from PIL import Image, ImageOps
 
 from math_eval import evaluate_expression, normalize_expression
-from math_predict import MODEL_PATH, predict_math_symbol, predict_math_symbols_batch, _preprocess_image, _to_ink_grayscale
+from math_predict import MODEL_PATH, predict_math_symbol, predict_math_symbols_batch, _to_ink_grayscale
 from math_vision import recognize_expression_vision
 
 
@@ -113,6 +113,70 @@ def _avg_confidence(symbols: list[dict]) -> float:
     return sum(float(s.get("confidence", 0)) for s in symbols) / len(symbols)
 
 
+def _symbol_option_lists(symbols: list[dict]) -> list[list[str]]:
+    opts: list[list[str]] = []
+    for sym in symbols:
+        alts = [str(sym.get("symbol", "?"))]
+        for alt in sym.get("alternatives") or []:
+            s = str(alt.get("symbol", ""))
+            if s and s not in alts:
+                alts.append(s)
+        opts.append(alts[:5])
+    return opts
+
+
+def _best_expression_from_symbols(symbols: list[dict]) -> tuple[str, list[dict]] | None:
+    """Try top-5 alternatives per symbol; return the expression that evaluates."""
+    if not symbols:
+        return None
+    opts = _symbol_option_lists(symbols)
+    primary = "".join(o[0] for o in opts)
+    best_expr: str | None = None
+    best_score = -1.0
+
+    def consider(expr: str, score: float) -> None:
+        nonlocal best_expr, best_score
+        normalized = normalize_expression(expr)
+        if not normalized or evaluate_expression(normalized) is None:
+            return
+        if score > best_score:
+            best_score = score
+            best_expr = normalized
+
+    consider(primary, _avg_confidence(symbols))
+
+    chars = [o[0] for o in opts]
+    # Try top alternatives at each position (fixes - vs =, 1 vs 7, etc.).
+    for i in range(len(symbols)):
+        for alt in opts[i][1:4]:
+            trial = chars.copy()
+            trial[i] = alt
+            consider("".join(trial), float(symbols[i].get("confidence", 0)) * 0.85)
+
+    # Pair swaps on the two weakest symbols.
+    by_conf = sorted(range(len(symbols)), key=lambda i: float(symbols[i].get("confidence", 0)))
+    if len(by_conf) >= 2:
+        i0, i1 = by_conf[0], by_conf[1]
+        for a0 in opts[i0][:4]:
+            for a1 in opts[i1][:4]:
+                trial = chars.copy()
+                trial[i0], trial[i1] = a0, a1
+                consider("".join(trial), (float(symbols[i0].get("confidence", 0)) + float(symbols[i1].get("confidence", 0))) * 0.45)
+
+    if best_expr is None:
+        return None
+    return best_expr, symbols
+
+
+def _apply_symbol_resolution(result: dict) -> dict:
+    resolved = _best_expression_from_symbols(result.get("symbols") or [])
+    if resolved:
+        expr, symbols = resolved
+        result["expression"] = expr
+        result["symbols"] = symbols
+    return result
+
+
 def _recognize_with_cnn(image_bytes: bytes) -> dict:
     gray = _to_ink_grayscale(Image.open(BytesIO(image_bytes)))
     cropped, ink = _crop_to_ink(gray)
@@ -121,19 +185,17 @@ def _recognize_with_cnn(image_bytes: bytes) -> dict:
     boxes = _merge_equals_fragments(_merge_adjacent_digit_boxes(_connected_boxes(ink)))
     if not boxes:
         buf = BytesIO()
-        _preprocess_image(cropped).save(buf, format="PNG")
+        cropped.save(buf, format="PNG")
         one = predict_math_symbol(buf.getvalue())
         return {"expression": one["symbol"], "symbols": [one]}
 
     crops: list[Image.Image] = []
     for box in boxes:
-        crop = _crop_box(arr, box)
-        crop = crop.filter(ImageFilter.MaxFilter(3))
-        crops.append(crop)
+        crops.append(_crop_box(arr, box))
 
     symbols = predict_math_symbols_batch(crops)
     expression = "".join(str(s["symbol"]) for s in symbols)
-    return {"expression": expression, "symbols": symbols}
+    return _apply_symbol_resolution({"expression": expression, "symbols": symbols})
 
 
 def _recognize_per_symbol_crops(symbol_images: list[bytes]) -> dict | None:
@@ -144,13 +206,13 @@ def _recognize_per_symbol_crops(symbol_images: list[bytes]) -> dict | None:
     for raw in symbol_images:
         if not raw:
             continue
-        gray = _to_ink_grayscale(Image.open(BytesIO(raw)))
-        crops.append(_preprocess_image(gray))
+        # Raw tldraw export — predict_math_symbols_batch handles preprocessing once.
+        crops.append(Image.open(BytesIO(raw)))
     if not crops:
         return None
     symbols = predict_math_symbols_batch(crops)
     expression = "".join(str(s["symbol"]) for s in symbols)
-    return {"expression": expression, "symbols": symbols}
+    return _apply_symbol_resolution({"expression": expression, "symbols": symbols})
 
 
 def _score_candidate(expr: str, symbols: list[dict], source: str) -> float:
@@ -161,12 +223,18 @@ def _score_candidate(expr: str, symbols: list[dict], source: str) -> float:
     result = evaluate_expression(normalized)
     if result is not None:
         score += 100.0
+    else:
+        return -1.0
     conf = _avg_confidence(symbols)
-    score += conf * 40.0
-    if source == "vision":
-        score += 25.0
-    elif source == "shapes":
+    score += conf * 60.0
+    if source == "shapes":
+        score += 30.0
+        if conf >= 0.25:
+            score += 20.0
+    elif source == "cnn":
         score += 15.0
+    elif source == "vision":
+        score += 10.0
     score += min(len(normalized), 20) * 0.5
     return score
 
@@ -190,18 +258,7 @@ def recognize_expression_image(
 
     candidates: list[dict] = []
 
-    # Vision reads full expression — best for 110+120 and messy handwriting.
-    vision_expr = recognize_expression_vision(image_bytes)
-    if vision_expr:
-        cleaned = normalize_expression(vision_expr)
-        if cleaned:
-            candidates.append({
-                "expression": cleaned,
-                "symbols": [],
-                "source": "vision",
-            })
-
-    # Per-stroke crops from frontend (one tldraw shape = one symbol).
+    # Per-stroke crops from frontend (one tldraw shape = one symbol) — best CNN path.
     if symbol_images:
         try:
             shapes = _recognize_per_symbol_crops(symbol_images)
@@ -220,6 +277,22 @@ def recognize_expression_image(
                 candidates.append(cnn)
         except Exception as exc:
             print(f"[math] CNN path failed: {exc!r}")
+
+    # Vision only when CNN paths are missing or none evaluate.
+    need_vision = not candidates or all(
+        evaluate_expression(normalize_expression(c.get("expression", ""))) is None
+        for c in candidates
+    )
+    if need_vision:
+        vision_expr = recognize_expression_vision(image_bytes)
+        if vision_expr:
+            cleaned = normalize_expression(vision_expr)
+            if cleaned:
+                candidates.append({
+                    "expression": cleaned,
+                    "symbols": [],
+                    "source": "vision",
+                })
 
     if not candidates:
         if MODEL_PATH.is_file():

@@ -20,7 +20,7 @@ _OPS = {
 def _eval_node(node: ast.AST) -> float:
     if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
         return float(node.value)
-    if isinstance(node, ast.Num):  # py<3.8 compat
+    if hasattr(ast, "Num") and isinstance(node, ast.Num):  # py<3.12
         return float(node.n)
     if isinstance(node, ast.UnaryOp) and type(node.op) in _OPS:
         return _OPS[type(node.op)](_eval_node(node.operand))

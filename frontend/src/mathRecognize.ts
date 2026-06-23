@@ -250,8 +250,8 @@ export async function exportExpressionImage(editor: Editor, shapeIds: TLShapeId[
   const { blob } = await editor.toImage(shapeIds, {
     format: 'png',
     background: true,
-    padding: 16,
-    scale: 2,
+    padding: shapeIds.length === 1 ? 8 : 16,
+    scale: shapeIds.length === 1 ? 3 : 2,
   })
   return blob
 }
